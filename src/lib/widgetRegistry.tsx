@@ -1,6 +1,8 @@
 import React from 'react';
 import CalendarWidget from '../components/CalendarWidget';
 import PerformanceChartWidget from '../components/PerformanceChartWidget';
+import SetupAnalyticsWidget from '../components/SetupAnalyticsWidget';
+import PositionManagementAnalyticsWidget from '../components/PositionManagementAnalyticsWidget';
 import { getWidgetSizeInfo } from '../components/ui/WidgetContainer';
 import { WidgetProps, Metrics } from '../types/widget';
 import { Trade } from '../types/trade';
@@ -219,7 +221,29 @@ export const WIDGET_REGISTRY: WidgetConfig[] = [
   { id: 'zellaScore', title: 'Zella Score', component: ZellaScoreWidget, defaultLayout: { w: 6, h: 4 }, minSize: { w: 6, h: 4 }, category: 'analytics', description: 'Overall trading performance score' },
   { id: 'recentTrades', title: 'Recent Trades', component: RecentTradesWidget, defaultLayout: { w: 6, h: 4 }, minSize: { w: 6, h: 4 }, category: 'analytics', description: 'List of your most recent trades' },
   { id: 'performanceChart', title: 'Performance Chart', component: PerformanceChartWidget, defaultLayout: { w: 6, h: 4 }, minSize: { w: 6, h: 4 }, category: 'charts', description: 'Cumulative P&L over time' },
-  { id: 'calendar', title: '', component: CalendarWidget, defaultLayout: { w: 6, h: 4 }, minSize: { w: 6, h: 4 }, category: 'tools', description: '' }
+  { id: 'calendar', title: '', component: CalendarWidget, defaultLayout: { w: 6, h: 4 }, minSize: { w: 6, h: 4 }, category: 'tools', description: '' },
+  
+  // New Advanced Analytics Widgets
+  { 
+    id: 'setupAnalytics', 
+    title: 'Setup Analytics', 
+    component: SetupAnalyticsWidget, 
+    defaultLayout: { w: 12, h: 6 }, 
+    minSize: { w: 8, h: 4 }, 
+    maxSize: { w: 12, h: 8 },
+    category: 'analytics', 
+    description: 'Analyze trading setup performance and patterns' 
+  },
+  { 
+    id: 'positionManagement', 
+    title: 'Position Management', 
+    component: PositionManagementAnalyticsWidget, 
+    defaultLayout: { w: 12, h: 6 }, 
+    minSize: { w: 8, h: 4 }, 
+    maxSize: { w: 12, h: 8 },
+    category: 'analytics', 
+    description: 'Analyze partial close tracking and position management efficiency' 
+  }
 ];
 
 // Default dashboard layout

@@ -6,6 +6,7 @@ import { TrendingUp, TrendingDown, Target, DollarSign, BarChart3, Shield, Clock,
 import MetricCard from './MetricCard';
 import { ChartContainer, ChartTooltip } from '@/components/ui/chart';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
+import EnhancedReportTabs from './EnhancedReportTabs';
 
 const Reports: React.FC = () => {
         const { trades } = useTradeContext();
@@ -487,7 +488,7 @@ const Reports: React.FC = () => {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <BarChart3 className="w-4 h-4" />
             Overview
@@ -495,6 +496,10 @@ const Reports: React.FC = () => {
           <TabsTrigger value="detailed" className="flex items-center gap-2">
             <Zap className="w-4 h-4" />
             Detailed Metrics
+          </TabsTrigger>
+          <TabsTrigger value="enhanced" className="flex items-center gap-2">
+            <Activity className="w-4 h-4" />
+            Enhanced Analytics
           </TabsTrigger>
         </TabsList>
 
@@ -2802,6 +2807,11 @@ const Reports: React.FC = () => {
               icon={<DollarSign className="w-5 h-5" />}
             />
           </div>
+        </TabsContent>
+
+        {/* Enhanced Analytics Tab */}
+        <TabsContent value="enhanced" className="space-y-6">
+          <EnhancedReportTabs trades={filteredTrades} />
         </TabsContent>
       </Tabs>
     </div>

@@ -9,9 +9,11 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
 import { useTradeContext } from '../contexts/TradeContext';
-import { Trade, TradeFormData, CURRENCY_PAIRS, TRADING_SESSIONS, LOT_SIZES, calculatePips, calculatePipValue } from '../types/trade';
+import { Trade, TradeFormData, TradeSetup, TradePattern, CURRENCY_PAIRS, TRADING_SESSIONS, LOT_SIZES, calculatePips, calculatePipValue } from '../types/trade';
 import { toast } from '../hooks/use-toast';
 import { getTodayDate } from '../lib/dateUtils';
+import { SetupClassificationPanel } from './SetupClassificationPanel';
+import { PatternRecognitionPanel } from './PatternRecognitionPanel';
 
 const tradeSchema = z.object({
         currencyPair: z.string().min(1, 'Currency pair is required'),
@@ -67,6 +69,11 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
         const [entryMode, setEntryMode] = useState<'quick' | 'detailed'>('quick');
         const [showAdvanced, setShowAdvanced] = useState(false);
         const [pnlInputType, setPnlInputType] = useState<'amount' | 'percentage'>('amount');
+        
+        // Enhanced Classification State
+        const [tradeSetup, setTradeSetup] = useState<TradeSetup | undefined>(undefined);
+        const [tradePatterns, setTradePatterns] = useState<TradePattern[]>([]);
+        const [showEnhancedFeatures, setShowEnhancedFeatures] = useState(false);
         
         // Calculations
         const [calculatedPnL, setCalculatedPnL] = useState<number | null>(null);
@@ -140,9 +147,59 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
             }
           }
         }, [watchedValues, entryMode]);
+
+        // Validate enhanced features
+        const validateEnhancedFeatures = (): string[] => {
+          const errors: string[] = [];
+          
+          // Validate setup if provided
+          if (tradeSetup) {
+            if (!tradeSetup.type) {
+              errors.push('Setup type is required when setup classification is provided');
+            }
+            if (!tradeSetup.timeframe) {
+              errors.push('Setup timeframe is required when setup classification is provided');
+            }
+            if (!tradeSetup.marketCondition) {
+              errors.push('Market condition is required when setup classification is provided');
+            }
+            if (tradeSetup.quality < 1 || tradeSetup.quality > 5) {
+              errors.push('Setup quality must be between 1 and 5');
+            }
+          }
+          
+          // Validate patterns if provided
+          if (tradePatterns && tradePatterns.length > 0) {
+            tradePatterns.forEach((pattern, index) => {
+              if (!pattern.type) {
+                errors.push(`Pattern ${index + 1}: Pattern type is required`);
+              }
+              if (!pattern.timeframe) {
+                errors.push(`Pattern ${index + 1}: Timeframe is required`);
+              }
+              if (pattern.quality < 1 || pattern.quality > 5) {
+                errors.push(`Pattern ${index + 1}: Quality must be between 1 and 5`);
+              }
+            });
+          }
+          
+          return errors;
+        };
       
         const onSubmit = async (data: TradeFormData & { pnlAmount?: string; pnlPercentage?: string }) => {
           try {
+            // Validate enhanced features if they are being used
+            if (showEnhancedFeatures) {
+              const enhancedErrors = validateEnhancedFeatures();
+              if (enhancedErrors.length > 0) {
+                toast({
+                  title: "Validation Error",
+                  description: enhancedErrors.join(', '),
+                  variant: "destructive",
+                });
+                return;
+              }
+            }
             let finalPnL: number | undefined;
             
             // Determine P&L from different input methods
@@ -194,6 +251,7 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
 
             const trade: Trade = {
               id: Date.now().toString(),
+              accountId: 'default', // TODO: Get from account context when implemented
               currencyPair: data.currencyPair.toUpperCase(),
               date: data.date,
               timeIn: data.timeIn,
@@ -224,6 +282,11 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
               riskAmount: data.riskAmount ? parseFloat(data.riskAmount) : undefined,
               status: data.exitPrice || entryMode === 'quick' ? 'closed' : 'open',
               pnl: finalPnL,
+              // Enhanced features
+              setup: tradeSetup,
+              patterns: tradePatterns.length > 0 ? tradePatterns : undefined,
+              partialCloses: undefined, // Will be populated when partial closes are added
+              positionHistory: undefined, // Will be populated when position events are added
             };
       
             // Calculate R-multiple if risk amount is provided
@@ -236,9 +299,19 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
             console.log('Attempting to add trade:', trade);
             await addTrade(trade);
             
+            // Create success message with enhanced features info
+            let description = `${trade.currencyPair} trade logged${trade.pnl !== undefined ? ` with ${trade.pnl >= 0 ? '+' : ''}${trade.pnl.toFixed(2)} P&L` : ''}`;
+            
+            if (trade.setup || (trade.patterns && trade.patterns.length > 0)) {
+              const features = [];
+              if (trade.setup) features.push('setup classification');
+              if (trade.patterns && trade.patterns.length > 0) features.push(`${trade.patterns.length} pattern${trade.patterns.length !== 1 ? 's' : ''}`);
+              description += ` with ${features.join(' and ')}`;
+            }
+            
             toast({
               title: "Trade Added Successfully! 🎉",
-              description: `${trade.currencyPair} trade logged${trade.pnl !== undefined ? ` with ${trade.pnl >= 0 ? '+' : ''}$${trade.pnl.toFixed(2)} P&L` : ''}`,
+              description,
             });
             onClose();
           } catch (error) {
@@ -695,6 +768,41 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
                         </div>
                       )}
                     </div>
+
+                    {/* Enhanced Classification Features - Only show in detailed mode */}
+                    {entryMode === 'detailed' && (
+                      <div className="space-y-4">
+                        <button
+                          type="button"
+                          onClick={() => setShowEnhancedFeatures(!showEnhancedFeatures)}
+                          className="flex items-center text-sm font-medium text-gray-900 hover:text-purple-600 transition-colors"
+                        >
+                          {showEnhancedFeatures ? <ChevronUp className="w-4 h-4 mr-1" /> : <ChevronDown className="w-4 h-4 mr-1" />}
+                          Enhanced Trade Classification
+                          <span className="ml-2 text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">
+                            New
+                          </span>
+                        </button>
+                        
+                        {showEnhancedFeatures && (
+                          <div className="space-y-4">
+                            {/* Setup Classification Panel */}
+                            <SetupClassificationPanel
+                              setup={tradeSetup}
+                              onChange={setTradeSetup}
+                              className="bg-gray-50"
+                            />
+
+                            {/* Pattern Recognition Panel */}
+                            <PatternRecognitionPanel
+                              patterns={tradePatterns}
+                              onChange={setTradePatterns}
+                              className="bg-gray-50"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </form>
                 </div>
               </div>

@@ -1,23 +1,13 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import MetricCard from './MetricCard';
+import DashboardWidget from './DashboardWidget';
+import { AVAILABLE_WIDGETS } from '../config/dashboardConfig';
 import EditTradeModal from './EditTradeModal';
-import { ColumnSelector } from './ColumnSelector';
-import { DraggableTableHeader } from './DraggableTableHeader';
-import { TableCell } from './TableCell';
-import { Upload, Filter, X, ChevronDown, Search } from 'lucide-react';
+import { Filter, X, ChevronDown, Search, Edit, Trash2, TrendingUp, TrendingDown, ArrowUpDown, MoreHorizontal } from 'lucide-react';
 import { useTradeContext } from '../contexts/TradeContext';
-import { useColumnConfig } from '../hooks/useColumnConfig';
-import { getColumnById } from '../config/tableConfig';
-import { Trade } from '../types/trade';
 
 const TradeLog: React.FC = () => {
-  const navigate = useNavigate();
-  const { trades, deleteTrade, getTotalPnL, getWinRate, getProfitFactor } = useTradeContext();
+  const { trades, deleteTrade } = useTradeContext();
   const [editingTradeId, setEditingTradeId] = useState<string | null>(null);
-  
-  // Column configuration
-  const { visibleColumns, toggleColumn, reorderColumns, orderedVisibleColumns } = useColumnConfig();
   
   // Filter states
   const [showFilters, setShowFilters] = useState(false);
@@ -75,7 +65,6 @@ const TradeLog: React.FC = () => {
           trade.timeIn || '',
           trade.timeOut || '',
           trade.accountCurrency?.toLowerCase() || '',
-          // Add other forex-specific fields
         ].join(' ');
         
         if (!searchableFields.includes(query)) {
@@ -120,41 +109,6 @@ const TradeLog: React.FC = () => {
     });
   }, [trades, filters, searchQuery]);
 
-  // Check if any filters are active
-  const hasActiveFilters = useMemo(() => {
-    return searchQuery.trim() !== '' ||
-           filters.symbol !== '' ||
-           filters.side !== 'all' ||
-           filters.status !== 'all' ||
-           filters.dateFrom !== '' ||
-           filters.dateTo !== '' ||
-           filters.minPnL !== '' ||
-           filters.maxPnL !== '';
-  }, [filters, searchQuery]);
-
-  // Reset all filters
-  const resetFilters = () => {
-    setSearchQuery('');
-    setFilters({
-      symbol: '',
-      side: 'all',
-      status: 'all',
-      dateFrom: '',
-      dateTo: '',
-      minPnL: '',
-      maxPnL: '',
-    });
-  };
-
-  const totalPnL = getTotalPnL();
-  const winRate = getWinRate();
-  const profitFactor = getProfitFactor();
-  const closedTrades = trades.filter(trade => trade.status === 'closed');
-  const winners = closedTrades.filter(trade => (trade.pnl || 0) > 0);
-  const losers = closedTrades.filter(trade => (trade.pnl || 0) < 0);
-  const avgWin = winners.length > 0 ? winners.reduce((sum, trade) => sum + (trade.pnl || 0), 0) / winners.length : 0;
-  const avgLoss = losers.length > 0 ? Math.abs(losers.reduce((sum, trade) => sum + (trade.pnl || 0), 0) / losers.length) : 0;
-
   const handleDeleteTrade = (tradeId: string) => {
     if (window.confirm('Are you sure you want to delete this trade?')) {
       deleteTrade(tradeId);
@@ -163,15 +117,6 @@ const TradeLog: React.FC = () => {
 
   const handleEditTrade = (tradeId: string) => {
     setEditingTradeId(tradeId);
-  };
-
-  // Navigate to trade details page
-  const handleReviewTrade = (trade: Trade) => {
-    navigate(`/trade/${trade.id}`);
-  };
-
-  const handleTradeClick = (trade: Trade) => {
-    navigate(`/trade/${trade.id}`);
   };
 
   return (
@@ -186,313 +131,311 @@ const TradeLog: React.FC = () => {
 
       {/* Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard 
-          title="Net cumulative P&L" 
-          value={`$${totalPnL.toFixed(2)}`}
-          color={totalPnL >= 0 ? "green" : "red"}
+        <DashboardWidget
+          widget={AVAILABLE_WIDGETS.find(w => w.id === 'netPnl')!}
+          trades={filteredTrades}
+          position={0}
+          onWidgetChange={() => {}}
+          hideEdit={true}
         />
-        <MetricCard 
-          title="Profit factor" 
-          value={closedTrades.length === 0 ? "N/A" : profitFactor.toFixed(2)}
-          color={profitFactor >= 1 ? "green" : "red"}
-          showProgress={true}
-          progressValue={Math.min(Math.round(profitFactor * 50), 100)}
+        <DashboardWidget
+          widget={AVAILABLE_WIDGETS.find(w => w.id === 'profitFactor')!}
+          trades={filteredTrades}
+          position={1}
+          onWidgetChange={() => {}}
+          hideEdit={true}
         />
-        <MetricCard 
-          title="Trade win %" 
-          value={closedTrades.length === 0 ? "0%" : `${winRate.toFixed(1)}%`}
-          color={winRate >= 50 ? "green" : "red"}
-          showProgress={true}
-          progressValue={Math.round(winRate)}
+        <DashboardWidget
+          widget={AVAILABLE_WIDGETS.find(w => w.id === 'winRate')!}
+          trades={filteredTrades}
+          position={2}
+          onWidgetChange={() => {}}
+          hideEdit={true}
         />
-        <MetricCard 
-          title="Avg win/loss trade" 
-          value={winners.length === 0 ? "--" : `$${avgWin.toFixed(2)}`}
-          subtitle={losers.length === 0 ? "--" : `$${avgLoss.toFixed(2)}`}
-          color={closedTrades.length === 0 ? "red" : avgWin > 0 ? "green" : "red"}
+        <DashboardWidget
+          widget={AVAILABLE_WIDGETS.find(w => w.id === 'avgWinLoss')!}
+          trades={filteredTrades}
+          position={3}
+          onWidgetChange={() => {}}
+          hideEdit={true}
         />
       </div>
 
-      {/* Toolbar */}
-      <div className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-4 py-3">
-        <div className="flex items-center space-x-4">
-          {/* Universal Search */}
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              placeholder="Search trades..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="block w-64 pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center"
-              >
-                <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
-              </button>
-            )}
-          </div>
-        </div>
-        
-        <div className="flex items-center space-x-3">
-          {/* Trade Count */}
-          <div className="text-sm text-gray-500">
-            {filteredTrades.length} {filteredTrades.length === 1 ? 'trade' : 'trades'}
-          </div>
-          
-          {/* Column Selector */}
-          <ColumnSelector
-            visibleColumns={visibleColumns}
-            onToggleColumn={toggleColumn}
-          />
-          
-          {/* Filter Dropdown */}
-          <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors"
-            >
-              <Filter className="w-4 h-4" />
-              <span>Filter</span>
-              {hasActiveFilters && (
-                <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium text-white bg-blue-500 rounded-full">
-                  {Object.values(filters).filter(value => value !== '' && value !== 'all').length}
-                </span>
+      {/* Enhanced Search and Filter Bar */}
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            {/* Enhanced Search Input */}
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search trades..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 w-80 h-9 border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200 text-sm"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  title="Clear search"
+                >
+                  <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                </button>
               )}
-              <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-            </button>
+            </div>
 
-            {/* Dropdown Menu */}
-            {showFilters && (
-              <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-medium text-gray-900">Filter Trades</h3>
-                    {hasActiveFilters && (
-                      <button
-                        onClick={resetFilters}
-                        className="flex items-center space-x-1 px-2 py-1 text-xs text-gray-600 hover:text-gray-900 transition-colors"
-                      >
-                        <X className="w-3 h-3" />
-                        <span>Clear all</span>
-                      </button>
-                    )}
-                  </div>
+            {/* Trade Count Badge */}
+            <div className="bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors px-2.5 py-1.5 rounded-md text-sm font-medium">
+              {filteredTrades.length} trades
+            </div>
+          </div>
 
-                  <div className="space-y-4">
-                    {/* Currency Pair Filter */}
+          <div className="flex items-center space-x-3">
+            {/* Enhanced Filter Button */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="h-9 px-3 bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 rounded-md flex items-center text-sm font-medium text-gray-700"
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                Filter
+                <ChevronDown
+                  className={`h-4 w-4 ml-2 transition-transform duration-200 ${showFilters ? "rotate-180" : ""}`}
+                />
+              </button>
+
+              {showFilters && (
+                <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                  <div className="p-4 space-y-4">
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Currency Pair
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Search currency pairs..."
-                        value={filters.symbol}
-                        onChange={(e) => setFilters(prev => ({ ...prev, symbol: e.target.value }))}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-
-                    {/* Side and Status Filters */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Side
-                        </label>
-                        <select
-                          value={filters.side}
-                          onChange={(e) => setFilters(prev => ({ ...prev, side: e.target.value as 'all' | 'long' | 'short' }))}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Side</label>
+                      <div className="flex space-x-2">
+                        <span 
+                          onClick={() => setFilters(prev => ({ ...prev, side: prev.side === 'long' ? 'all' : 'long' }))}
+                          className={`px-2.5 py-1.5 border rounded-md cursor-pointer text-sm transition-colors ${
+                            filters.side === 'long' 
+                              ? 'bg-green-50 border-green-200 text-green-800' 
+                              : 'border-gray-200 hover:bg-green-50 hover:border-green-200'
+                          }`}
                         >
-                          <option value="all">All</option>
-                          <option value="long">Long</option>
-                          <option value="short">Short</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Status
-                        </label>
-                        <select
-                          value={filters.status}
-                          onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value as 'all' | 'open' | 'closed' }))}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          LONG
+                        </span>
+                        <span 
+                          onClick={() => setFilters(prev => ({ ...prev, side: prev.side === 'short' ? 'all' : 'short' }))}
+                          className={`px-2.5 py-1.5 border rounded-md cursor-pointer text-sm transition-colors ${
+                            filters.side === 'short' 
+                              ? 'bg-red-50 border-red-200 text-red-800' 
+                              : 'border-gray-200 hover:bg-red-50 hover:border-red-200'
+                          }`}
                         >
-                          <option value="all">All</option>
-                          <option value="open">Open</option>
-                          <option value="closed">Closed</option>
-                        </select>
+                          SHORT
+                        </span>
                       </div>
                     </div>
-
-                    {/* Date Range Filters */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Date From
-                        </label>
-                        <input
-                          type="date"
-                          value={filters.dateFrom}
-                          onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Date To
-                        </label>
-                        <input
-                          type="date"
-                          value={filters.dateTo}
-                          onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                      <div className="flex space-x-2">
+                        <span 
+                          onClick={() => setFilters(prev => ({ ...prev, status: prev.status === 'closed' ? 'all' : 'closed' }))}
+                          className={`px-2.5 py-1.5 border rounded-md cursor-pointer text-sm transition-colors ${
+                            filters.status === 'closed' 
+                              ? 'bg-blue-50 border-blue-200 text-blue-800' 
+                              : 'border-gray-200 hover:bg-blue-50 hover:border-blue-200'
+                          }`}
+                        >
+                          CLOSED
+                        </span>
+                        <span 
+                          onClick={() => setFilters(prev => ({ ...prev, status: prev.status === 'open' ? 'all' : 'open' }))}
+                          className={`px-2.5 py-1.5 border rounded-md cursor-pointer text-sm transition-colors ${
+                            filters.status === 'open' 
+                              ? 'bg-orange-50 border-orange-200 text-orange-800' 
+                              : 'border-gray-200 hover:bg-orange-50 hover:border-orange-200'
+                          }`}
+                        >
+                          OPEN
+                        </span>
                       </div>
                     </div>
-
-                    {/* P&L Range Filters */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Min P&L
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          placeholder="e.g. -100"
-                          value={filters.minPnL}
-                          onChange={(e) => setFilters(prev => ({ ...prev, minPnL: e.target.value }))}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Max P&L
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          placeholder="e.g. 500"
-                          value={filters.maxPnL}
-                          onChange={(e) => setFilters(prev => ({ ...prev, maxPnL: e.target.value }))}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Results Count */}
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <p className="text-xs text-gray-500 text-center">
-                      Showing {filteredTrades.length} of {trades.length} trades
-                    </p>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Trades Table or Empty State */}
-      {filteredTrades.length === 0 ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-12">
-          <div className="text-center">
-            <div className="w-24 h-24 mx-auto mb-6 text-gray-300">
-              {trades.length === 0 ? (
-                <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
-                  <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              ) : (
-                <Filter className="w-full h-full" />
-              )}
-            </div>
-            
-            {trades.length === 0 ? (
-              <>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No trades to show here</h3>
-                <p className="text-gray-500 mb-6">Start by importing your trades or adding them manually</p>
-                
-                <button className="flex items-center space-x-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors mx-auto">
-                  <Upload className="w-4 h-4" />
-                  <span>Import trades</span>
-                </button>
-              </>
-            ) : (
-              <>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No trades match your filters</h3>
-                <p className="text-gray-500 mb-6">Try adjusting your filter criteria or clearing all filters</p>
-                
-                <button 
-                  onClick={resetFilters}
-                  className="flex items-center space-x-2 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors mx-auto"
-                >
-                  <X className="w-4 h-4" />
-                  <span>Clear all filters</span>
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <DraggableTableHeader
-                  columns={orderedVisibleColumns.map(id => getColumnById(id)!).filter(Boolean)}
-                  onReorder={reorderColumns}
-                >
-                  {(column) => (
-                    <span>{column.label}</span>
-                  )}
-                </DraggableTableHeader>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredTrades.map((trade) => (
-                  <tr 
-                    key={trade.id} 
-                    className="hover:bg-gray-50 cursor-pointer transition-colors"
-                    onClick={() => handleTradeClick(trade)}
-                  >
-                    {orderedVisibleColumns.map(columnId => {
-                      const column = getColumnById(columnId);
-                      if (!column) return null;
-                      
-                      return (
-                        <TableCell
-                          key={columnId}
-                          column={column}
-                          trade={trade}
-                          onEdit={() => handleEditTrade(trade.id)}
-                          onDelete={() => handleDeleteTrade(trade.id)}
-                          onView={() => handleReviewTrade(trade)}
-                        />
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {/* Enhanced Trades Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            {/* Enhanced Table Header */}
+            <thead>
+              <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <div className="flex items-center space-x-1 cursor-pointer hover:text-gray-900 transition-colors">
+                    <span>Currency Pair</span>
+                    <ArrowUpDown className="h-3 w-3" />
+                  </div>
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <div className="flex items-center space-x-1 cursor-pointer hover:text-gray-900 transition-colors">
+                    <span>Date</span>
+                    <ArrowUpDown className="h-3 w-3" />
+                  </div>
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Side
+                </th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Entry
+                </th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Exit
+                </th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <div className="flex items-center justify-end space-x-1 cursor-pointer hover:text-gray-900 transition-colors">
+                    <span>Pips</span>
+                    <ArrowUpDown className="h-3 w-3" />
+                  </div>
+                </th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <div className="flex items-center justify-end space-x-1 cursor-pointer hover:text-gray-900 transition-colors">
+                    <span>P&L</span>
+                    <ArrowUpDown className="h-3 w-3" />
+                  </div>
+                </th>
+                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
 
-      <EditTradeModal 
-        trade={trades.find(t => t.id === editingTradeId) || null}
-        isOpen={editingTradeId !== null}
-        onClose={() => setEditingTradeId(null)}
-      />
+            {/* Enhanced Table Body */}
+            <tbody className="divide-y divide-gray-100">
+              {filteredTrades.map((trade) => (
+                <tr
+                  key={trade.id}
+                  className="group hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50 transition-all duration-200 hover:shadow-sm"
+                >
+                  {/* Currency Pair */}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-semibold text-gray-900 group-hover:text-blue-900 transition-colors">
+                      {trade.currencyPair}
+                    </div>
+                  </td>
+
+                  {/* Date */}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-600 group-hover:text-gray-800 transition-colors">
+                      {new Date(trade.date).toLocaleDateString('en-US', { month: 'short', day: '2-digit' })}
+                    </div>
+                  </td>
+
+                  {/* Side */}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span
+                      className={`inline-flex px-2 py-1 text-xs font-medium rounded-md transition-colors duration-200 ${
+                        trade.side === "long"
+                          ? "bg-green-100 text-green-800 border border-green-200"
+                          : "bg-red-100 text-red-800 border border-red-200"
+                      }`}
+                    >
+                      {trade.side?.toUpperCase()}
+                    </span>
+                  </td>
+
+                  {/* Entry */}
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <div className="text-sm font-mono text-gray-900 group-hover:text-blue-900 transition-colors">
+                      {trade.entryPrice?.toFixed(5)}
+                    </div>
+                  </td>
+
+                  {/* Exit */}
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <div className="text-sm font-mono text-gray-900 group-hover:text-blue-900 transition-colors">
+                      {trade.exitPrice?.toFixed(5) || '-'}
+                    </div>
+                  </td>
+
+                  {/* Pips */}
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <div
+                      className={`text-sm font-semibold flex items-center justify-end space-x-1 ${
+                        (trade.pips || 0) > 0 ? "text-green-600" : "text-red-600"
+                      }`}
+                    >
+                      {(trade.pips || 0) > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                      <span>
+                        {(trade.pips || 0) > 0 ? "+" : ""}
+                        {(trade.pips || 0).toFixed(1)}
+                      </span>
+                    </div>
+                  </td>
+
+                  {/* P&L */}
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <div className={`text-sm font-bold ${(trade.pnl || 0) > 0 ? "text-green-600" : "text-red-600"}`}>
+                      {(trade.pnl || 0) > 0 ? "+" : ""}${(trade.pnl || 0).toFixed(2)}
+                    </div>
+                  </td>
+
+                  {/* Actions */}
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <div className="flex items-center justify-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <button
+                        onClick={() => handleEditTrade(trade.id)}
+                        className="h-8 w-8 p-0 hover:bg-blue-100 hover:text-blue-600 transition-colors rounded-md flex items-center justify-center"
+                        title="Edit trade"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTrade(trade.id)}
+                        className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600 transition-colors rounded-md flex items-center justify-center"
+                        title="Delete trade"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        className="h-8 w-8 p-0 hover:bg-gray-100 hover:text-gray-600 transition-colors rounded-md flex items-center justify-center"
+                        title="More options"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Enhanced Empty State */}
+        {filteredTrades.length === 0 && (
+          <div className="text-center py-12">
+            <div className="text-gray-400 mb-4">
+              <Search className="h-12 w-12 mx-auto" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No trades found</h3>
+            <p className="text-gray-500">Try adjusting your search or filter criteria</p>
+          </div>
+        )}
+      </div>
+
+      {/* Edit Trade Modal */}
+      {editingTradeId && (
+        <EditTradeModal
+          trade={trades.find(t => t.id === editingTradeId) || null}
+          isOpen={!!editingTradeId}
+          onClose={() => setEditingTradeId(null)}
+        />
+      )}
     </div>
   );
 };

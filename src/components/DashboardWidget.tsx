@@ -9,13 +9,15 @@ interface DashboardWidgetProps {
   trades: Trade[];
   position: number;
   onWidgetChange: (widgetId: string) => void;
+  hideEdit?: boolean; // Optional prop to hide the edit button
 }
 
 const DashboardWidget: React.FC<DashboardWidgetProps> = ({ 
   widget, 
   trades, 
   position, 
-  onWidgetChange
+  onWidgetChange,
+  hideEdit = false
 }) => {
   const data = widget.getValue(trades);
   
@@ -68,14 +70,16 @@ const DashboardWidget: React.FC<DashboardWidgetProps> = ({
 
   return (
     <div className={`transition-all hover:shadow-md rounded-xl border py-6 shadow-sm relative group ${getVariantStyles(data.color)}`}>
-      {/* Edit button shows on hover */}
-      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-        <WidgetSelector
-          position={position}
-          currentWidgetId={widget.id}
-          onWidgetChange={onWidgetChange}
-        />
-      </div>
+      {/* Edit button shows on hover - only if not hidden */}
+      {!hideEdit && (
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+          <WidgetSelector
+            position={position}
+            currentWidgetId={widget.id}
+            onWidgetChange={onWidgetChange}
+          />
+        </div>
+      )}
       
       {/* Header */}
       <div className="flex flex-row items-center justify-between space-y-0 pb-2 px-6">

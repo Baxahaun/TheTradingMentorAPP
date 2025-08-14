@@ -21,9 +21,12 @@ import {
   Zap
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTradeContext } from '../contexts/TradeContext';
+import ExportDialog from '../components/ExportDialog';
 
 const SettingsPage: React.FC = () => {
   const { user } = useAuth();
+  const { trades } = useTradeContext();
   const [profileSettings, setProfileSettings] = useState({
     displayName: user?.displayName || '',
     email: user?.email || '',
@@ -55,10 +58,7 @@ const SettingsPage: React.FC = () => {
     console.log('Saving profile settings:', profileSettings);
   };
 
-  const handleExportData = () => {
-    // TODO: Implement data export logic
-    console.log('Exporting user data...');
-  };
+
 
   const handleImportData = () => {
     // TODO: Implement data import logic
@@ -382,10 +382,7 @@ const SettingsPage: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Button variant="outline" onClick={handleExportData}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Export My Data
-                </Button>
+                <ExportDialog trades={trades} />
                 <Button variant="outline" onClick={handleImportData}>
                   <Upload className="w-4 h-4 mr-2" />
                   Import Data

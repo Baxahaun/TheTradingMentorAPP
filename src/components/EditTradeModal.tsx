@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, ChevronDown, ChevronUp } from 'lucide-react';
 import { useTradeContext } from '../contexts/TradeContext';
-import { Trade } from '../types/trade';
+import { Trade, TradeSetup, TradePattern, PartialClose } from '../types/trade';
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SetupClassificationPanel } from './SetupClassificationPanel';
+import { PatternRecognitionPanel } from './PatternRecognitionPanel';
+import { PartialCloseManagementPanel } from './PartialCloseManagementPanel';
+import { toast } from '../hooks/use-toast';
 
 interface EditTradeModalProps {
   trade: Trade | null;
@@ -27,10 +31,22 @@ const EditTradeModal: React.FC<EditTradeModalProps> = ({
 }) => {
   const { updateTrade } = useTradeContext();
   const [formData, setFormData] = useState<Partial<Trade>>({});
+  
+  // Enhanced features state
+  const [tradeSetup, setTradeSetup] = useState<TradeSetup | undefined>(undefined);
+  const [tradePatterns, setTradePatterns] = useState<TradePattern[]>([]);
+  const [showEnhancedFeatures, setShowEnhancedFeatures] = useState(false);
+  const [showPositionManagement, setShowPositionManagement] = useState(false);
 
   useEffect(() => {
     if (trade) {
       setFormData({ ...trade });
+      setTradeSetup(trade.setup);
+      setTradePatterns(trade.patterns || []);
+      // Show enhanced features if they exist
+      setShowEnhancedFeatures(!!(trade.setup || (trade.patterns && trade.patterns.length > 0)));
+      // Show position management for open trades or trades with partial closes
+      setShowPositionManagement(trade.status === 'open' || !!(trade.partialCloses && trade.partialCloses.length > 0));
     }
   }, [trade]);
 
@@ -47,11 +63,14 @@ const EditTradeModal: React.FC<EditTradeModalProps> = ({
         ...formData,
         entryPrice: Number(formData.entryPrice),
         exitPrice: formData.exitPrice ? Number(formData.exitPrice) : undefined,
-        quantity: Number(formData.quantity),
+        lotSize: Number(formData.lotSize || formData.quantity), // Support both field names
         stopLoss: formData.stopLoss ? Number(formData.stopLoss) : undefined,
         takeProfit: formData.takeProfit ? Number(formData.takeProfit) : undefined,
         commission: formData.commission ? Number(formData.commission) : undefined,
         confidence: formData.confidence ? Number(formData.confidence) : undefined,
+        // Enhanced features
+        setup: tradeSetup,
+        patterns: tradePatterns.length > 0 ? tradePatterns : undefined,
       };
 
       // Remove undefined values for Firebase
@@ -60,21 +79,58 @@ const EditTradeModal: React.FC<EditTradeModalProps> = ({
       );
 
       // Calculate P&L if both prices exist
-      if (cleanedTrade.entryPrice && cleanedTrade.exitPrice && cleanedTrade.quantity) {
+      if (cleanedTrade.entryPrice && cleanedTrade.exitPrice && cleanedTrade.lotSize) {
         const priceChange = cleanedTrade.side === 'long' 
           ? cleanedTrade.exitPrice - cleanedTrade.entryPrice
           : cleanedTrade.entryPrice - cleanedTrade.exitPrice;
-        cleanedTrade.pnl = priceChange * cleanedTrade.quantity - (cleanedTrade.commission || 0);
+        cleanedTrade.pnl = priceChange * cleanedTrade.lotSize - (cleanedTrade.commission || 0);
       }
 
       console.log('Updating trade with:', cleanedTrade);
       await updateTrade(cleanedTrade.id, cleanedTrade);
+      
+      // Create success message with enhanced features info
+      let description = `${cleanedTrade.currencyPair || cleanedTrade.symbol} trade updated successfully`;
+      
+      if (cleanedTrade.setup || (cleanedTrade.patterns && cleanedTrade.patterns.length > 0)) {
+        const features = [];
+        if (cleanedTrade.setup) features.push('setup classification');
+        if (cleanedTrade.patterns && cleanedTrade.patterns.length > 0) features.push(`${cleanedTrade.patterns.length} pattern${cleanedTrade.patterns.length !== 1 ? 's' : ''}`);
+        description += ` with ${features.join(' and ')}`;
+      }
+      
+      toast({
+        title: "Trade Updated Successfully! ✅",
+        description,
+      });
+      
       console.log('Trade updated successfully');
       onClose();
     } catch (error) {
       console.error('Failed to update trade:', error);
-      alert('Failed to update trade: ' + error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update trade. Please try again.",
+        variant: "destructive",
+      });
     }
+  };
+
+  // Handle partial close addition
+  const handlePartialClose = (partialClose: PartialClose) => {
+    const updatedPartialCloses = [...(trade?.partialCloses || []), partialClose];
+    const updatedTrade = {
+      ...trade,
+      partialCloses: updatedPartialCloses,
+    };
+    
+    // Update the trade immediately
+    updateTrade(trade!.id, updatedTrade);
+    
+    toast({
+      title: "Partial Close Added",
+      description: `${partialClose.lotSize} lots closed at ${partialClose.price}`,
+    });
   };
 
   const handleChange = (field: string, value: string | number | Date) => {
@@ -86,7 +142,7 @@ const EditTradeModal: React.FC<EditTradeModalProps> = ({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
-            <span>Edit Trade: {trade.symbol}</span>
+            <span>Edit Trade: {trade.currencyPair || trade.symbol}</span>
             <Button variant="ghost" size="sm" onClick={onClose} className="h-6 w-6 p-0">
               <X className="h-4 w-4" />
             </Button>
@@ -97,11 +153,11 @@ const EditTradeModal: React.FC<EditTradeModalProps> = ({
           {/* Basic Info */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="symbol">Symbol</Label>
+              <Label htmlFor="currencyPair">Currency Pair</Label>
               <Input
-                id="symbol"
-                value={formData.symbol || ''}
-                onChange={(e) => handleChange('symbol', e.target.value)}
+                id="currencyPair"
+                value={formData.currencyPair || formData.symbol || ''}
+                onChange={(e) => handleChange('currencyPair', e.target.value)}
                 required
               />
             </div>
@@ -174,12 +230,13 @@ const EditTradeModal: React.FC<EditTradeModalProps> = ({
               />
             </div>
             <div>
-              <Label htmlFor="quantity">Quantity</Label>
+              <Label htmlFor="lotSize">Lot Size</Label>
               <Input
-                id="quantity"
+                id="lotSize"
                 type="number"
-                value={formData.quantity || ''}
-                onChange={(e) => handleChange('quantity', e.target.value)}
+                step="0.01"
+                value={formData.lotSize || formData.quantity || ''}
+                onChange={(e) => handleChange('lotSize', e.target.value)}
                 required
               />
             </div>
@@ -262,8 +319,70 @@ const EditTradeModal: React.FC<EditTradeModalProps> = ({
             </div>
           </div>
 
+          {/* Enhanced Classification Features */}
+          <div className="space-y-4 border-t pt-4">
+            <button
+              type="button"
+              onClick={() => setShowEnhancedFeatures(!showEnhancedFeatures)}
+              className="flex items-center text-sm font-medium text-gray-900 hover:text-purple-600 transition-colors"
+            >
+              {showEnhancedFeatures ? <ChevronUp className="w-4 h-4 mr-1" /> : <ChevronDown className="w-4 h-4 mr-1" />}
+              Enhanced Trade Classification
+              {(tradeSetup || tradePatterns.length > 0) && (
+                <span className="ml-2 text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">
+                  Active
+                </span>
+              )}
+            </button>
+            
+            {showEnhancedFeatures && (
+              <div className="space-y-4">
+                {/* Setup Classification Panel */}
+                <SetupClassificationPanel
+                  setup={tradeSetup}
+                  onChange={setTradeSetup}
+                  className="bg-gray-50"
+                />
+
+                {/* Pattern Recognition Panel */}
+                <PatternRecognitionPanel
+                  patterns={tradePatterns}
+                  onChange={setTradePatterns}
+                  className="bg-gray-50"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Position Management - Only show for open trades or trades with partial closes */}
+          {(trade?.status === 'open' || (trade?.partialCloses && trade.partialCloses.length > 0)) && (
+            <div className="space-y-4 border-t pt-4">
+              <button
+                type="button"
+                onClick={() => setShowPositionManagement(!showPositionManagement)}
+                className="flex items-center text-sm font-medium text-gray-900 hover:text-orange-600 transition-colors"
+              >
+                {showPositionManagement ? <ChevronUp className="w-4 h-4 mr-1" /> : <ChevronDown className="w-4 h-4 mr-1" />}
+                Position Management
+                {trade?.partialCloses && trade.partialCloses.length > 0 && (
+                  <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
+                    {trade.partialCloses.length} partial{trade.partialCloses.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </button>
+              
+              {showPositionManagement && trade && (
+                <PartialCloseManagementPanel
+                  trade={trade}
+                  onPartialClose={handlePartialClose}
+                  className="bg-gray-50"
+                />
+              )}
+            </div>
+          )}
+
           {/* Buttons */}
-          <div className="flex justify-end gap-3 pt-4">
+          <div className="flex justify-end gap-3 pt-4 border-t">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>

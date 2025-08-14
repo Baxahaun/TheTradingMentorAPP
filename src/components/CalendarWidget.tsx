@@ -40,12 +40,30 @@ export default function CalendarWidget({ trades = [], onDateClick }: CalendarWid
     const data: Record<string, { pnl: number; count: number }> = {}
     
     trades.forEach(trade => {
-      const date = new Date(trade.date).toDateString()
-      if (!data[date]) {
-        data[date] = { pnl: 0, count: 0 }
+      // Extract just the date part and create a consistent date string
+      let dateKey: string;
+      if (typeof trade.date === 'string') {
+        // If it's already a string like '2024-12-08', extract the date part
+        const datePart = trade.date.split('T')[0]; // Split on 'T' to get just the date part
+        if (datePart) {
+          const [year, month, day] = datePart.split('-');
+          if (year && month && day) {
+            dateKey = new Date(parseInt(year), parseInt(month) - 1, parseInt(day)).toDateString();
+          } else {
+            dateKey = new Date(trade.date).toDateString();
+          }
+        } else {
+          dateKey = new Date(trade.date).toDateString();
+        }
+      } else {
+        dateKey = new Date(trade.date).toDateString();
       }
-      data[date].pnl += trade.pnl || 0
-      data[date].count += 1
+      
+      if (!data[dateKey]) {
+        data[dateKey] = { pnl: 0, count: 0 }
+      }
+      data[dateKey]!.pnl += trade.pnl || 0
+      data[dateKey]!.count += 1
     })
 
     return data
@@ -85,7 +103,8 @@ export default function CalendarWidget({ trades = [], onDateClick }: CalendarWid
   }
 
   const getDayData = (date: Date) => {
-    return tradesData[date.toDateString()] || { pnl: 0, count: 0 }
+    const dayData = tradesData[date.toDateString()] || { pnl: 0, count: 0 }
+    return dayData
   }
 
   const months = [
@@ -157,17 +176,17 @@ export default function CalendarWidget({ trades = [], onDateClick }: CalendarWid
                   }
                 }}
                 className={`
-                  min-h-[50px] p-2 border rounded-md flex flex-col items-center justify-center text-sm
+                  h-12 p-1 border rounded-md flex flex-col items-center justify-center text-sm
                   ${isCurrentMonth(date) ? "bg-background" : "bg-muted/30 text-muted-foreground"}
                   ${isToday(date) ? "bg-primary text-primary-foreground font-semibold" : ""}
                   ${hasActivity && isProfitDay ? "bg-green-50 border-green-200" : ""}
                   ${hasActivity && isLossDay ? "bg-red-50 border-red-200" : ""}
-                  cursor-pointer hover:bg-accent transition-colors
+                  cursor-pointer hover:bg-accent transition-colors overflow-hidden
                 `}
               >
-                <span className={isToday(date) ? "text-primary-foreground" : ""}>{date.getDate()}</span>
+                <span className={`text-xs ${isToday(date) ? "text-primary-foreground" : ""}`}>{date.getDate()}</span>
                 {hasActivity && (
-                  <div className="text-xs mt-1">
+                  <div className="text-xs leading-none">
                     <div className={`font-medium ${isProfitDay ? "text-green-600" : "text-red-600"}`}>
                       ${dayData.pnl.toFixed(0)}
                     </div>

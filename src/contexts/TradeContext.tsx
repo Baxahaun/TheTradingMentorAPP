@@ -3,6 +3,8 @@ import { Trade, TradingAccount, AccountStats } from '../types/trade';
 import { tradeService } from '../lib/firebaseService';
 import { accountService } from '../lib/accountService';
 import { DataMigrationService } from '../lib/dataMigration';
+import { EnhancedDataMigrationService } from '../lib/enhancedDataMigration';
+import { widgetDataService } from '../lib/widgetDataService';
 import { useAuth } from './AuthContext';
 
 interface TradeContextType {
@@ -29,6 +31,14 @@ interface TradeContextType {
   getProfitFactor: (accountId?: string) => number;
   getAccountStats: (accountId: string) => AccountStats;
   getCurrentAccountTrades: () => Trade[];
+  
+  // Enhanced features migration (NEW)
+  migrationStatus: {
+    isEnhancedMigrationCompleted: boolean;
+    migrationInProgress: boolean;
+  };
+  runEnhancedMigration: () => Promise<void>;
+  getUnclassifiedTrades: () => Trade[];
 }
 
 const TradeContext = createContext<TradeContextType | undefined>(undefined);
@@ -49,6 +59,12 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
   const [currentAccount, setCurrentAccount] = useState<TradingAccount | null>(null);
   const [accountsLoading, setAccountsLoading] = useState(true);
+  
+  // Enhanced features migration state (NEW)
+  const [migrationStatus, setMigrationStatus] = useState({
+    isEnhancedMigrationCompleted: false,
+    migrationInProgress: false
+  });
   
   const { user } = useAuth();
 
@@ -96,6 +112,9 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const unsubscribe = tradeService.subscribeToTrades(user.uid, (updatedTrades) => {
       setTrades(updatedTrades);
       setLoading(false);
+      
+      // Trigger widget data refresh when trades are updated
+      widgetDataService.onTradeDataChange();
     });
 
     return unsubscribe;
@@ -122,6 +141,23 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     migrateLocalStorageData();
   }, [user]);
 
+  // Check enhanced features migration status
+  useEffect(() => {
+    if (!user) {
+      setMigrationStatus({
+        isEnhancedMigrationCompleted: false,
+        migrationInProgress: false
+      });
+      return;
+    }
+
+    const isCompleted = EnhancedDataMigrationService.isEnhancedMigrationCompleted();
+    setMigrationStatus(prev => ({
+      ...prev,
+      isEnhancedMigrationCompleted: isCompleted
+    }));
+  }, [user]);
+
   const addTrade = async (trade: Trade) => {
     if (!user) {
       throw new Error('User must be authenticated to add trades');
@@ -129,7 +165,21 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       const { id, ...tradeData } = trade;
-      await tradeService.addTrade(user.uid, tradeData);
+      
+      // Ensure enhanced features fields are properly initialized
+      const enhancedTradeData = {
+        ...tradeData,
+        // Initialize enhanced features as undefined for backward compatibility
+        setup: tradeData.setup || undefined,
+        patterns: tradeData.patterns || undefined,
+        partialCloses: tradeData.partialCloses || undefined,
+        positionHistory: tradeData.positionHistory || undefined,
+        setupPerformance: tradeData.setupPerformance || undefined,
+        patternConfluence: tradeData.patternConfluence || undefined,
+        positionManagementScore: tradeData.positionManagementScore || undefined,
+      };
+      
+      await tradeService.addTrade(user.uid, enhancedTradeData);
       // The real-time subscription will update the trades state
     } catch (error) {
       console.error('Error adding trade:', error);
@@ -143,7 +193,20 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     try {
-      await tradeService.updateTrade(user.uid, id, updatedTrade);
+      // Ensure enhanced features are properly handled in updates
+      const enhancedUpdate = {
+        ...updatedTrade,
+        // Preserve existing enhanced features if not being updated
+        ...(updatedTrade.setup !== undefined && { setup: updatedTrade.setup }),
+        ...(updatedTrade.patterns !== undefined && { patterns: updatedTrade.patterns }),
+        ...(updatedTrade.partialCloses !== undefined && { partialCloses: updatedTrade.partialCloses }),
+        ...(updatedTrade.positionHistory !== undefined && { positionHistory: updatedTrade.positionHistory }),
+        ...(updatedTrade.setupPerformance !== undefined && { setupPerformance: updatedTrade.setupPerformance }),
+        ...(updatedTrade.patternConfluence !== undefined && { patternConfluence: updatedTrade.patternConfluence }),
+        ...(updatedTrade.positionManagementScore !== undefined && { positionManagementScore: updatedTrade.positionManagementScore }),
+      };
+      
+      await tradeService.updateTrade(user.uid, id, enhancedUpdate);
       // The real-time subscription will update the trades state
     } catch (error) {
       console.error('Error updating trade:', error);
@@ -267,6 +330,40 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return trades.filter(trade => trade.accountId === currentAccount.id);
   };
 
+  // Enhanced features migration functions (NEW)
+  const runEnhancedMigration = async () => {
+    if (!user || migrationStatus.migrationInProgress) return;
+
+    setMigrationStatus(prev => ({ ...prev, migrationInProgress: true }));
+
+    try {
+      const result = await EnhancedDataMigrationService.migrateExistingTrades(user.uid);
+      
+      if (result.success) {
+        console.log('Enhanced features migration completed:', result);
+        setMigrationStatus({
+          isEnhancedMigrationCompleted: true,
+          migrationInProgress: false
+        });
+      } else {
+        console.warn('Enhanced features migration completed with errors:', result.errors);
+        setMigrationStatus(prev => ({ ...prev, migrationInProgress: false }));
+      }
+    } catch (error) {
+      console.error('Enhanced features migration failed:', error);
+      setMigrationStatus(prev => ({ ...prev, migrationInProgress: false }));
+    }
+  };
+
+  const getUnclassifiedTrades = (): Trade[] => {
+    return trades.filter(trade => 
+      !trade.setup && 
+      (!trade.patterns || trade.patterns.length === 0) && 
+      (!trade.partialCloses || trade.partialCloses.length === 0) &&
+      (!trade.positionHistory || trade.positionHistory.length === 0)
+    );
+  };
+
   return (
     <TradeContext.Provider value={{
       // Trade management
@@ -292,6 +389,11 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       getProfitFactor,
       getAccountStats,
       getCurrentAccountTrades,
+      
+      // Enhanced features migration
+      migrationStatus,
+      runEnhancedMigration,
+      getUnclassifiedTrades,
     }}>
       {children}
     </TradeContext.Provider>
