@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { X, ChevronDown, ChevronUp, AlertCircle, CheckCircle } from 'lucide-react';
 import { useTradeContext } from '../contexts/TradeContext';
 import { Trade, TradeSetup, TradePattern, PartialClose } from '../types/trade';
 import {
@@ -16,6 +16,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SetupClassificationPanel } from './SetupClassificationPanel';
 import { PatternRecognitionPanel } from './PatternRecognitionPanel';
 import { PartialCloseManagementPanel } from './PartialCloseManagementPanel';
+import { TagInput } from './ui/tag-input';
+import { tagService } from '../lib/tagService';
+import { useTagValidation } from '../hooks/useTagValidation';
 import { toast } from '../hooks/use-toast';
 
 interface EditTradeModalProps {
@@ -29,7 +32,7 @@ const EditTradeModal: React.FC<EditTradeModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { updateTrade } = useTradeContext();
+  const { updateTrade, trades } = useTradeContext();
   const [formData, setFormData] = useState<Partial<Trade>>({});
   
   // Enhanced features state
@@ -37,18 +40,79 @@ const EditTradeModal: React.FC<EditTradeModalProps> = ({
   const [tradePatterns, setTradePatterns] = useState<TradePattern[]>([]);
   const [showEnhancedFeatures, setShowEnhancedFeatures] = useState(false);
   const [showPositionManagement, setShowPositionManagement] = useState(false);
+  
+  // Tags state with change tracking
+  const [tags, setTags] = useState<string[]>([]);
+  const [originalTags, setOriginalTags] = useState<string[]>([]);
+  const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
+  const [tagChanges, setTagChanges] = useState<{
+    added: string[];
+    removed: string[];
+    modified: boolean;
+  }>({ added: [], removed: [], modified: false });
+  
+  // Tag validation
+  const { validationState, validateTags, clearValidation } = useTagValidation({
+    validateOnChange: true,
+    showWarnings: true,
+    maxTags: 10
+  });
+  
+  // Track if tags have been modified for persistence
+  const tagsModifiedRef = useRef(false);
 
   useEffect(() => {
     if (trade) {
       setFormData({ ...trade });
       setTradeSetup(trade.setup);
       setTradePatterns(trade.patterns || []);
+      
+      // Initialize tags with change tracking
+      const tradeTags = trade.tags || [];
+      setTags(tradeTags);
+      setOriginalTags([...tradeTags]);
+      setTagChanges({ added: [], removed: [], modified: false });
+      tagsModifiedRef.current = false;
+      clearValidation();
+      
       // Show enhanced features if they exist
       setShowEnhancedFeatures(!!(trade.setup || (trade.patterns && trade.patterns.length > 0)));
       // Show position management for open trades or trades with partial closes
       setShowPositionManagement(trade.status === 'open' || !!(trade.partialCloses && trade.partialCloses.length > 0));
     }
-  }, [trade]);
+  }, [trade, clearValidation]);
+
+  // Load tag suggestions
+  useEffect(() => {
+    if (trades && trades.length > 0) {
+      const suggestions = tagService.getTagSuggestions(trades, '', 20);
+      setTagSuggestions(suggestions);
+    }
+  }, [trades]);
+
+  // Track tag changes for modification history
+  const handleTagsChange = useCallback((newTags: string[]) => {
+    setTags(newTags);
+    tagsModifiedRef.current = true;
+    
+    // Calculate changes
+    const added = newTags.filter(tag => !originalTags.includes(tag));
+    const removed = originalTags.filter(tag => !newTags.includes(tag));
+    const modified = added.length > 0 || removed.length > 0;
+    
+    setTagChanges({ added, removed, modified });
+    
+    // Validate tags on change
+    validateTags(newTags);
+  }, [originalTags, validateTags]);
+
+  // Reset tag changes when modal closes
+  const handleClose = useCallback(() => {
+    setTagChanges({ added: [], removed: [], modified: false });
+    tagsModifiedRef.current = false;
+    clearValidation();
+    onClose();
+  }, [onClose, clearValidation]);
 
   if (!trade) return null;
 
@@ -57,7 +121,40 @@ const EditTradeModal: React.FC<EditTradeModalProps> = ({
     
     console.log('Form submitted with data:', formData);
     
+    // Validate tags before submission
+    const tagValidation = validateTags(tags);
+    if (!tagValidation.isValid) {
+      toast({
+        title: "Tag Validation Error",
+        description: tagValidation.errors.join(', '),
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
+      // Process and validate tags with enhanced error handling
+      let processedTags: string[] = [];
+      if (tags.length > 0) {
+        try {
+          processedTags = tagService.processTags(tags);
+          
+          // Additional validation for processed tags
+          const finalValidation = tagService.validateTags(processedTags);
+          if (!finalValidation.isValid) {
+            throw new Error(`Tag validation failed: ${finalValidation.errors.map(e => e.message).join(', ')}`);
+          }
+        } catch (tagError) {
+          console.error('Tag processing error:', tagError);
+          toast({
+            title: "Tag Processing Error",
+            description: tagError instanceof Error ? tagError.message : "Failed to process tags",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+      
       const updatedTrade = {
         ...trade,
         ...formData,
@@ -71,6 +168,8 @@ const EditTradeModal: React.FC<EditTradeModalProps> = ({
         // Enhanced features
         setup: tradeSetup,
         patterns: tradePatterns.length > 0 ? tradePatterns : undefined,
+        // Tags with proper handling
+        tags: processedTags.length > 0 ? processedTags : undefined,
       };
 
       // Remove undefined values for Firebase
@@ -87,10 +186,44 @@ const EditTradeModal: React.FC<EditTradeModalProps> = ({
       }
 
       console.log('Updating trade with:', cleanedTrade);
-      await updateTrade(cleanedTrade.id, cleanedTrade);
       
-      // Create success message with enhanced features info
+      // Attempt to update trade with retry logic for tag persistence
+      let updateAttempts = 0;
+      const maxAttempts = 3;
+      
+      while (updateAttempts < maxAttempts) {
+        try {
+          await updateTrade(cleanedTrade.id, cleanedTrade);
+          break; // Success, exit retry loop
+        } catch (updateError) {
+          updateAttempts++;
+          console.error(`Update attempt ${updateAttempts} failed:`, updateError);
+          
+          if (updateAttempts >= maxAttempts) {
+            throw updateError; // Re-throw after max attempts
+          }
+          
+          // Wait before retry (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, updateAttempts) * 1000));
+        }
+      }
+      
+      // Create success message with tag changes info
       let description = `${cleanedTrade.currencyPair || cleanedTrade.symbol} trade updated successfully`;
+      
+      // Add information about tag changes
+      if (tagChanges.modified) {
+        const changeInfo = [];
+        if (tagChanges.added.length > 0) {
+          changeInfo.push(`${tagChanges.added.length} tag${tagChanges.added.length !== 1 ? 's' : ''} added`);
+        }
+        if (tagChanges.removed.length > 0) {
+          changeInfo.push(`${tagChanges.removed.length} tag${tagChanges.removed.length !== 1 ? 's' : ''} removed`);
+        }
+        if (changeInfo.length > 0) {
+          description += ` (${changeInfo.join(', ')})`;
+        }
+      }
       
       if (cleanedTrade.setup || (cleanedTrade.patterns && cleanedTrade.patterns.length > 0)) {
         const features = [];
@@ -105,12 +238,23 @@ const EditTradeModal: React.FC<EditTradeModalProps> = ({
       });
       
       console.log('Trade updated successfully');
-      onClose();
+      handleClose();
     } catch (error) {
       console.error('Failed to update trade:', error);
+      
+      // Provide specific error messages for tag-related failures
+      let errorMessage = "Failed to update trade. Please try again.";
+      if (error instanceof Error) {
+        if (error.message.includes('tag')) {
+          errorMessage = `Tag error: ${error.message}`;
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update trade. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -138,12 +282,12 @@ const EditTradeModal: React.FC<EditTradeModalProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span>Edit Trade: {trade.currencyPair || trade.symbol}</span>
-            <Button variant="ghost" size="sm" onClick={onClose} className="h-6 w-6 p-0">
+            <Button variant="ghost" size="sm" onClick={handleClose} className="h-6 w-6 p-0">
               <X className="h-4 w-4" />
             </Button>
           </DialogTitle>
@@ -296,6 +440,74 @@ const EditTradeModal: React.FC<EditTradeModalProps> = ({
             />
           </div>
 
+          {/* Tags with validation and change tracking */}
+          <div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="tags">Tags</Label>
+              {tagChanges.modified && (
+                <div className="flex items-center text-xs text-blue-600">
+                  <AlertCircle className="w-3 h-3 mr-1" />
+                  Modified
+                </div>
+              )}
+            </div>
+            
+            <TagInput
+              value={tags}
+              onChange={handleTagsChange}
+              suggestions={tagSuggestions}
+              placeholder="Add tags to categorize this trade... (e.g., #breakout, #news, #confident)"
+              maxTags={10}
+              className="mt-1"
+            />
+            
+            {/* Validation feedback */}
+            {validationState.errors.length > 0 && (
+              <div className="mt-1 text-xs text-red-600 flex items-start">
+                <AlertCircle className="w-3 h-3 mr-1 mt-0.5 flex-shrink-0" />
+                <div>
+                  {validationState.errors.map((error, index) => (
+                    <div key={index}>{error}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {validationState.warnings.length > 0 && (
+              <div className="mt-1 text-xs text-yellow-600 flex items-start">
+                <AlertCircle className="w-3 h-3 mr-1 mt-0.5 flex-shrink-0" />
+                <div>
+                  {validationState.warnings.map((warning, index) => (
+                    <div key={index}>{warning}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Tag change summary */}
+            {tagChanges.modified && (
+              <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                <div className="font-medium mb-1">Tag Changes:</div>
+                {tagChanges.added.length > 0 && (
+                  <div className="text-green-600">
+                    <CheckCircle className="w-3 h-3 inline mr-1" />
+                    Added: {tagChanges.added.join(', ')}
+                  </div>
+                )}
+                {tagChanges.removed.length > 0 && (
+                  <div className="text-red-600">
+                    <X className="w-3 h-3 inline mr-1" />
+                    Removed: {tagChanges.removed.join(', ')}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <p className="text-xs text-gray-500 mt-1">
+              Use tags to categorize your trades for better organization and analysis
+            </p>
+          </div>
+
           {/* Psychology */}
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -383,7 +595,7 @@ const EditTradeModal: React.FC<EditTradeModalProps> = ({
 
           {/* Buttons */}
           <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={handleClose}>
               Cancel
             </Button>
             <Button type="submit">

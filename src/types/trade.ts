@@ -5,6 +5,9 @@ export interface Trade {
   // Account Information (NEW)
   accountId: string; // References the trading account this trade belongs to
   
+  // Tagging System (NEW)
+  tags?: string[]; // User-defined tags for flexible categorization
+  
   // Currency Pair Information
   currencyPair: string; // e.g., "EUR/USD", "GBP/JPY"
   
@@ -124,6 +127,9 @@ export interface AccountStats {
 
 
 export interface TradeFormData {
+  // Tagging System
+  tags: string;
+  
   // Currency Pair Information
   currencyPair: string;
   

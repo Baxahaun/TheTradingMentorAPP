@@ -14,6 +14,8 @@ import { toast } from '../hooks/use-toast';
 import { getTodayDate } from '../lib/dateUtils';
 import { SetupClassificationPanel } from './SetupClassificationPanel';
 import { PatternRecognitionPanel } from './PatternRecognitionPanel';
+import { TagInput } from './ui/tag-input';
+import { tagService } from '../lib/tagService';
 
 const tradeSchema = z.object({
         currencyPair: z.string().min(1, 'Currency pair is required'),
@@ -40,6 +42,7 @@ const tradeSchema = z.object({
         emotions: z.string().optional(),
         notes: z.string().optional(),
         riskAmount: z.string().optional(),
+        tags: z.array(z.string()).optional(),
       });
 
 const quickTradeSchema = z.object({
@@ -53,6 +56,7 @@ const quickTradeSchema = z.object({
         pnlAmount: z.string().optional(),
         pnlPercentage: z.string().optional(),
         riskAmount: z.string().optional(),
+        tags: z.array(z.string()).optional(),
       }).extend(tradeSchema.shape);
 ;
 
@@ -63,7 +67,7 @@ interface AddTradeProps {
 
       
 const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
-        const { addTrade } = useTradeContext();
+        const { addTrade, trades } = useTradeContext();
         
         // UI State
         const [entryMode, setEntryMode] = useState<'quick' | 'detailed'>('quick');
@@ -75,11 +79,15 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
         const [tradePatterns, setTradePatterns] = useState<TradePattern[]>([]);
         const [showEnhancedFeatures, setShowEnhancedFeatures] = useState(false);
         
+        // Tags State
+        const [tags, setTags] = useState<string[]>([]);
+        const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
+        
         // Calculations
         const [calculatedPnL, setCalculatedPnL] = useState<number | null>(null);
         const [showCalculatedPnL, setShowCalculatedPnL] = useState(false);
       
-        const form = useForm<TradeFormData & { pnlAmount?: string; pnlPercentage?: string }>({
+        const form = useForm<TradeFormData & { pnlAmount?: string; pnlPercentage?: string; tags?: string[] }>({
           resolver: zodResolver(quickTradeSchema),
           defaultValues: {
             currencyPair: '',
@@ -108,10 +116,24 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
             emotions: '',
             notes: '',
             riskAmount: '',
+            tags: [],
           },
         });
       
         const watchedValues = form.watch(['entryPrice', 'exitPrice', 'lotSize', 'lotType', 'currencyPair', 'side', 'commission', 'accountCurrency']);
+        
+        // Load tag suggestions from existing trades
+        useEffect(() => {
+          if (trades && trades.length > 0) {
+            const suggestions = tagService.getTagSuggestions(trades, '', 20);
+            setTagSuggestions(suggestions);
+          }
+        }, [trades]);
+        
+        // Sync tags state with form
+        useEffect(() => {
+          form.setValue('tags', tags);
+        }, [tags, form]);
       
         // Auto-calculate P&L from prices when in detailed mode (Forex)
         useEffect(() => {
@@ -186,7 +208,7 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
           return errors;
         };
       
-        const onSubmit = async (data: TradeFormData & { pnlAmount?: string; pnlPercentage?: string }) => {
+        const onSubmit = async (data: TradeFormData & { pnlAmount?: string; pnlPercentage?: string; tags?: string[] }) => {
           try {
             // Validate enhanced features if they are being used
             if (showEnhancedFeatures) {
@@ -249,6 +271,9 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
               }
             }
 
+            // Process and validate tags
+            const processedTags = tagService.processTags(tags);
+            
             const trade: Trade = {
               id: Date.now().toString(),
               accountId: 'default', // TODO: Get from account context when implemented
@@ -282,6 +307,7 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
               riskAmount: data.riskAmount ? parseFloat(data.riskAmount) : undefined,
               status: data.exitPrice || entryMode === 'quick' ? 'closed' : 'open',
               pnl: finalPnL,
+              tags: processedTags.length > 0 ? processedTags : undefined,
               // Enhanced features
               setup: tradeSetup,
               patterns: tradePatterns.length > 0 ? tradePatterns : undefined,
@@ -693,6 +719,22 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
                       
                       {showAdvanced && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Tags */}
+                          <div className="md:col-span-2">
+                            <Label htmlFor="tags">Tags</Label>
+                            <TagInput
+                              value={tags}
+                              onChange={setTags}
+                              suggestions={tagSuggestions}
+                              placeholder="Add tags to categorize this trade... (e.g., #breakout, #news, #confident)"
+                              maxTags={10}
+                              className="mt-1"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Use tags to categorize your trades for better organization and analysis
+                            </p>
+                          </div>
+
                           {/* Strategy */}
                           <div>
                             <Label htmlFor="strategy">Strategy</Label>
