@@ -16,9 +16,11 @@ export interface Trade {
   timeIn: string;
   timeOut?: string;
   session?: 'asian' | 'european' | 'us' | 'overlap'; // Trading session
+  timestamp: number; // Unix timestamp for chart markers
   
   // Trade Direction
   side: 'long' | 'short';
+  direction?: 'long' | 'short'; // Alias for side for compatibility
   
   // Pricing Information
   entryPrice: number;

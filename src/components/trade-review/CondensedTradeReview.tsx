@@ -5,7 +5,8 @@ import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
-import { ChartGalleryManager } from './ChartGalleryManager';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import TradingViewChart from './TradingViewChart';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -57,8 +58,8 @@ const CondensedTradeReview: React.FC<CondensedTradeReviewProps> = ({
   return (
     <div className={`flex-1 min-h-0 ${isMobile ? 'flex flex-col' : 'flex'}`}>
       {/* Left Sidebar - Key Trade Info */}
-      <div className={`${isMobile ? 'w-full mb-4' : 'w-96 flex-shrink-0'} bg-white border-r border-gray-200 overflow-y-auto`}>
-        <div className="p-8 space-y-6">
+      <div className={`${isMobile ? 'w-full mb-4' : 'w-80 flex-shrink-0'} bg-white border-r border-gray-200 overflow-y-auto`}>
+        <div className="p-6 space-y-4">
           {/* All Trade Details - Compact Layout */}
           <div className="space-y-3">
             {/* Entry */}
@@ -173,9 +174,19 @@ const CondensedTradeReview: React.FC<CondensedTradeReviewProps> = ({
             )}
           </div>
 
+          {/* Chart Controls */}
+          <div className="pt-3 border-t border-gray-200">
+            <label className="text-sm font-semibold text-gray-700 block mb-2">
+              Chart Settings
+            </label>
+            <ChartControlsPanel
+              trade={editedTrade}
+            />
+          </div>
+
           {/* Tags */}
-          <div className="pt-4 border-t border-gray-200">
-            <label className="text-sm font-semibold text-gray-700 block mb-3">
+          <div className="pt-3 border-t border-gray-200">
+            <label className="text-sm font-semibold text-gray-700 block mb-2">
               Tags
             </label>
             <CompactTagManager
@@ -185,9 +196,21 @@ const CondensedTradeReview: React.FC<CondensedTradeReviewProps> = ({
             />
           </div>
 
+          {/* Notes */}
+          <div className="pt-3 border-t border-gray-200">
+            <label className="text-sm font-semibold text-gray-700 block mb-2">
+              Notes
+            </label>
+            <CompactNotesEditor
+              notes={editedTrade.notes || ''}
+              isEditing={isEditing}
+              onNotesChange={(notes) => onTradeChange('notes', notes)}
+            />
+          </div>
+
           {/* Quick Actions */}
           {isEditing && (
-            <div className="pt-6 border-t border-gray-200">
+            <div className="pt-4 border-t border-gray-200">
               <Button 
                 variant="outline" 
                 size="lg" 
@@ -202,40 +225,14 @@ const CondensedTradeReview: React.FC<CondensedTradeReviewProps> = ({
         </div>
       </div>
 
-      {/* Main Content Area - Charts and Notes */}
-      <div className="flex-1 min-h-0 flex flex-col bg-white">
-        {/* Charts - Extended vertically with proper sizing */}
-        <div className="flex-1 min-h-0" style={{ minHeight: '60vh' }}>
-          <div className="p-8 h-full flex flex-col">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-gray-900">
-                Chart Analysis
-              </h3>
-              <BarChart3 className="w-6 h-6 text-gray-400" />
-            </div>
-            <div className="flex-1 min-h-0">
-              <ChartGalleryManagerWrapper
-                tradeId={editedTrade.id}
-                charts={editedTrade.charts || []}
-                isEditing={isEditing}
-                onChartsChange={(charts) => onTradeChange('charts', charts)}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Notes - Moved under charts with better spacing */}
-        <div className="border-t border-gray-200 bg-gray-50">
-          <div className="p-8">
-            <h3 className="text-xl font-bold text-gray-900 mb-6">
-              Trade Notes
-            </h3>
-            <CompactNotesEditor
-              notes={editedTrade.notes || ''}
-              isEditing={isEditing}
-              onNotesChange={(notes) => onTradeChange('notes', notes)}
-            />
-          </div>
+      {/* Main Content Area - Charts */}
+      <div className="flex-1 min-h-0 bg-white">
+        {/* Charts - Full height for maximum chart viewing */}
+        <div className="h-full" style={{ minHeight: '90vh' }}>
+          <TradingViewChart
+            trade={editedTrade}
+            className="h-full"
+          />
         </div>
       </div>
     </div>
@@ -301,41 +298,67 @@ const CompactTagManager: React.FC<{
   );
 };
 
-// Chart Gallery Manager Wrapper with proper sizing
-const ChartGalleryManagerWrapper: React.FC<{
-  tradeId: string;
-  charts: any[];
-  isEditing: boolean;
-  onChartsChange: (charts: any[]) => void;
-}> = ({ tradeId, charts, isEditing, onChartsChange }) => {
-  if (!charts || charts.length === 0) {
-    return (
-      <div className="h-full flex items-center justify-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-        <div className="text-center py-16">
-          <BarChart3 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-600 mb-2">No charts found</h3>
-          <p className="text-gray-500 text-base mb-6 max-w-md mx-auto">
-            Upload some chart images to get started with your trade analysis
-          </p>
-          {isEditing && (
-            <Button className="px-6 py-3">
-              <Plus className="w-5 h-5 mr-2" />
-              Upload Chart
-            </Button>
-          )}
-        </div>
-      </div>
-    );
-  }
+
+
+// Chart Controls Panel Component
+const ChartControlsPanel: React.FC<{
+  trade: Trade;
+}> = ({ trade }) => {
+  const [currentSymbol, setCurrentSymbol] = React.useState(trade.currencyPair || 'EUR/USD');
+  const [timeframe, setTimeframe] = React.useState('1H');
+
+  const forexPairs = [
+    'EURUSD', 'GBPUSD', 'USDJPY', 'USDCHF',
+    'AUDUSD', 'USDCAD', 'NZDUSD', 'EURJPY',
+    'GBPJPY', 'EURGBP', 'AUDJPY', 'EURAUD'
+  ];
+
+  const timeframes = [
+    { value: '1', label: '1m' },
+    { value: '5', label: '5m' },
+    { value: '15', label: '15m' },
+    { value: '30', label: '30m' },
+    { value: '1H', label: '1H' },
+    { value: '4H', label: '4H' },
+    { value: '1D', label: '1D' },
+    { value: '1W', label: '1W' }
+  ];
 
   return (
-    <div className="h-full">
-      <ChartGalleryManager
-        tradeId={tradeId}
-        charts={charts}
-        isEditing={isEditing}
-        onChartsChange={onChartsChange}
-      />
+    <div className="space-y-3">
+      {/* Symbol Selection */}
+      <div>
+        <label className="text-xs font-medium text-gray-600 block mb-1">Symbol</label>
+        <Select value={currentSymbol} onValueChange={setCurrentSymbol}>
+          <SelectTrigger className="w-full h-8 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {forexPairs.map(pair => (
+              <SelectItem key={pair} value={pair}>
+                {pair}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Timeframe Selection */}
+      <div>
+        <label className="text-xs font-medium text-gray-600 block mb-1">Timeframe</label>
+        <Select value={timeframe} onValueChange={setTimeframe}>
+          <SelectTrigger className="w-full h-8 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {timeframes.map(tf => (
+              <SelectItem key={tf.value} value={tf.value}>
+                {tf.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 };
@@ -347,25 +370,25 @@ const CompactNotesEditor: React.FC<{
   onNotesChange: (notes: string) => void;
 }> = ({ notes, isEditing, onNotesChange }) => {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {isEditing ? (
         <Textarea
           placeholder="Add your trade notes here..."
           value={notes}
           onChange={(e) => onNotesChange(e.target.value)}
-          className="min-h-[150px] text-base p-4 resize-none"
+          className="min-h-[80px] text-sm p-3 resize-none"
         />
       ) : (
-        <div className="min-h-[150px] p-4 bg-white rounded-lg border">
+        <div className="min-h-[80px] p-3 bg-white rounded-lg border">
           {notes ? (
-            <div className="text-base text-gray-700 whitespace-pre-wrap leading-relaxed">
+            <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
               {notes}
             </div>
           ) : (
             <div className="flex items-center justify-center h-full text-gray-400">
               <div className="text-center">
-                <FileText className="w-12 h-12 mx-auto mb-3" />
-                <p className="text-base">No notes added yet</p>
+                <FileText className="w-6 h-6 mx-auto mb-1" />
+                <p className="text-xs">No notes added yet</p>
               </div>
             </div>
           )}

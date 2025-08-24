@@ -3,7 +3,9 @@ import { Trade } from '../types/trade';
 // TradingView types (basic definitions)
 declare global {
   interface Window {
-    TradingView: any;
+    TradingView: {
+      widget: new (config: any) => any;
+    };
   }
 }
 
@@ -37,58 +39,64 @@ export class TradingViewService {
    */
   createWidget(config: TradingViewConfig): Promise<any> {
     return new Promise((resolve, reject) => {
-      if (!window.TradingView) {
-        reject(new Error('TradingView library not loaded'));
+      // Check if TradingView is available
+      if (typeof window === 'undefined' || !window.TradingView) {
+        reject(new Error('TradingView library not loaded. Please ensure the TradingView script is included.'));
         return;
       }
 
-      try {
-        this.widget = new window.TradingView.widget({
-          width: config.width,
-          height: config.height,
-          symbol: config.symbol,
-          interval: config.interval,
-          timezone: config.timezone,
-          theme: config.theme,
-          style: '1', // Candlestick chart
-          locale: config.locale,
-          toolbar_bg: '#f1f3f6',
-          enable_publishing: false,
-          hide_side_toolbar: false,
-          allow_symbol_change: true,
-          container_id: config.containerId,
-          // Professional styling
-          overrides: {
-            'paneProperties.background': '#ffffff',
-            'paneProperties.vertGridProperties.color': '#f0f0f0',
-            'paneProperties.horzGridProperties.color': '#f0f0f0',
-            'symbolWatermarkProperties.transparency': 90,
-            'scalesProperties.textColor': '#666666',
-          },
-          studies_overrides: {},
-          loading_screen: {
-            backgroundColor: '#ffffff',
-            foregroundColor: '#666666'
-          },
-          disabled_features: [
-            'use_localstorage_for_settings',
-            'volume_force_overlay',
-            'create_volume_indicator_by_default'
-          ],
-          enabled_features: [
-            'study_templates',
-            'side_toolbar_in_fullscreen_mode'
-          ]
-        });
+      // Wait a bit for TradingView to fully initialize
+      setTimeout(() => {
+        try {
+          // Use the correct TradingView widget configuration based on latest docs
+          this.widget = new window.TradingView.widget({
+            container: config.containerId,
+            width: config.width,
+            height: config.height,
+            symbol: config.symbol,
+            interval: config.interval,
+            timezone: config.timezone,
+            theme: config.theme,
+            locale: config.locale,
+            toolbar_bg: '#f1f3f6',
+            enable_publishing: false,
+            hide_side_toolbar: false,
+            allow_symbol_change: true,
+            // Use demo datafeed for now - this provides basic functionality
+            datafeed: new (window as any).Datafeeds.UDFCompatibleDatafeed("https://demo-feed-data.tradingview.com"),
+            library_path: "https://s3.tradingview.com/tv.js",
+            // Professional styling
+            overrides: {
+              'paneProperties.background': '#ffffff',
+              'paneProperties.vertGridProperties.color': '#f0f0f0',
+              'paneProperties.horzGridProperties.color': '#f0f0f0',
+              'symbolWatermarkProperties.transparency': 90,
+              'scalesProperties.textColor': '#666666',
+            },
+            studies_overrides: {},
+            loading_screen: {
+              backgroundColor: '#ffffff',
+              foregroundColor: '#666666'
+            },
+            disabled_features: [
+              'use_localstorage_for_settings',
+              'volume_force_overlay',
+              'create_volume_indicator_by_default'
+            ],
+            enabled_features: [
+              'study_templates'
+            ]
+          });
 
-        this.widget.onChartReady(() => {
-          this.chart = this.widget.chart();
-          resolve(this.widget);
-        });
+          this.widget.onChartReady(() => {
+            this.chart = this.widget.chart();
+            resolve(this.widget);
+          });
 
-      } catch (error) {
-        reject(error);
-      }
+        } catch (error) {
+          reject(error);
+        }
+      }, 500); // Increased delay to ensure TradingView is ready
     });
   }
 
@@ -105,37 +113,27 @@ export class TradingViewService {
       // Clear existing markers
       this.clearMarkers();
 
-      // Create entry marker
-      if (trade.timestamp && trade.entryPrice) {
-        const entryMarker = this.createTradeMarker({
-          time: new Date(trade.timestamp).getTime() / 1000, // TradingView uses seconds
+      // For now, let's use a simpler approach - just log the trade data
+      // The advanced marker functionality requires the full TradingView Charting Library
+      // which needs proper licensing and setup
+      console.log('Trade markers would be placed at:', {
+        entry: {
+          time: new Date(trade.timestamp).toISOString(),
           price: trade.entryPrice,
-          type: 'entry',
-          direction: trade.direction || 'long',
-          color: '#10b981',
-          text: '↗'
-        });
-
-        this.markers.push(entryMarker);
-      }
-
-      // Create exit marker (if trade is closed)
-      if (trade.exitPrice && trade.timestamp) {
-        // For demo purposes, assume exit is 1 hour after entry
-        // In real implementation, you'd have actual exit timestamp
-        const exitTime = new Date(trade.timestamp).getTime() / 1000 + 3600;
-        
-        const exitMarker = this.createTradeMarker({
-          time: exitTime,
+          type: 'entry'
+        },
+        exit: trade.exitPrice ? {
+          time: new Date(trade.timestamp + 3600000).toISOString(), // 1 hour later
           price: trade.exitPrice,
-          type: 'exit',
-          direction: trade.direction || 'long',
-          color: '#ef4444',
-          text: '↙'
-        });
+          type: 'exit'
+        } : null
+      });
 
-        this.markers.push(exitMarker);
-      }
+      // TODO: Implement actual marker creation when full TradingView library is available
+      // This would require:
+      // 1. Proper TradingView Charting Library license
+      // 2. Full library files (not just the widget script)
+      // 3. Custom datafeed implementation
 
     } catch (error) {
       console.error('Error adding trade markers:', error);
@@ -147,28 +145,45 @@ export class TradingViewService {
    */
   private createTradeMarker(marker: TradeMarker): any {
     try {
-      return this.chart.createShape(
-        { time: marker.time, price: marker.price },
-        {
-          shape: 'circle',
-          lock: true,
-          disableSelection: true,
-          disableUndo: true,
-          text: marker.text,
-          overrides: {
-            backgroundColor: marker.color,
-            borderColor: this.darkenColor(marker.color),
-            borderWidth: 2,
-            textColor: 'white',
-            fontSize: 14,
-            fontWeight: 'bold',
-            transparency: 0
-          }
+      // Use TradingView's createMultipointShape for markers
+      return this.chart.createMultipointShape([
+        { time: marker.time, price: marker.price }
+      ], {
+        shape: 'arrow_up' + (marker.type === 'exit' ? '_down' : ''),
+        lock: true,
+        disableSelection: true,
+        disableUndo: true,
+        overrides: {
+          backgroundColor: marker.color,
+          borderColor: this.darkenColor(marker.color),
+          borderWidth: 2,
+          textColor: 'white',
+          transparency: 0
         }
-      );
+      });
     } catch (error) {
       console.error('Error creating marker:', error);
-      return null;
+      // Fallback to simple shape if createMultipointShape fails
+      try {
+        return this.chart.createShape(
+          { time: marker.time, price: marker.price },
+          {
+            shape: 'arrow_up',
+            lock: true,
+            disableSelection: true,
+            disableUndo: true,
+            overrides: {
+              backgroundColor: marker.color,
+              borderColor: this.darkenColor(marker.color),
+              borderWidth: 2,
+              transparency: 0
+            }
+          }
+        );
+      } catch (fallbackError) {
+        console.error('Fallback marker creation failed:', fallbackError);
+        return null;
+      }
     }
   }
 
