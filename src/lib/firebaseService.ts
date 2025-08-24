@@ -124,6 +124,23 @@ export const tradeService = {
     }
   },
 
+  // Get a single trade by ID
+  async getTrade(userId: string, tradeId: string): Promise<Trade | null> {
+    try {
+      const tradeDoc = doc(getUserTradesCollection(userId), tradeId);
+      const docSnap = await getDoc(tradeDoc);
+      
+      if (docSnap.exists()) {
+        return convertFirestoreToTrade(docSnap);
+      } else {
+        return null;
+      }
+    } catch (error) {
+      console.error('Error getting trade:', error);
+      throw error;
+    }
+  },
+
   // Delete a trade
   async deleteTrade(userId: string, tradeId: string): Promise<void> {
     try {

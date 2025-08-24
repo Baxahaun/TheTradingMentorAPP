@@ -3,33 +3,73 @@ import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import { CalendarDays, Clock, TrendingUp, TrendingDown, Target, Shield, DollarSign } from 'lucide-react';
+import { Button } from './ui/button';
+import { CalendarDays, Clock, TrendingUp, TrendingDown, Target, Shield, DollarSign, ExternalLink } from 'lucide-react';
 import { Trade } from '../types/trade';
+import { NavigationContext } from '../types/navigation';
+import navigationContextService from '../lib/navigationContextService';
 
 interface TradeDetailModalProps {
   trade: Trade | null;
   isOpen: boolean;
   onClose: () => void;
+  navigationContext?: NavigationContext;
+  onOpenFullReview?: (tradeId: string, context: NavigationContext) => void;
 }
 
-const TradeDetailModal: React.FC<TradeDetailModalProps> = ({ trade, isOpen, onClose }) => {
+const TradeDetailModal: React.FC<TradeDetailModalProps> = ({ 
+  trade, 
+  isOpen, 
+  onClose, 
+  navigationContext,
+  onOpenFullReview 
+}) => {
   if (!trade) return null;
 
   const isProfitable = (trade.pnl || 0) >= 0;
   const rMultiple = trade.rMultiple || (trade.riskAmount && trade.pnl ? trade.pnl / trade.riskAmount : undefined);
 
+  // Handle opening full review
+  const handleOpenFullReview = () => {
+    if (onOpenFullReview) {
+      // Create navigation context for modal source
+      const modalContext: NavigationContext = navigationContext || {
+        source: 'dashboard',
+        sourceParams: {},
+        breadcrumb: ['Dashboard', 'Trade Modal'],
+        timestamp: Date.now()
+      };
+      
+      onOpenFullReview(trade.id, modalContext);
+      onClose();
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={() => onClose()}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <span className="text-2xl font-bold">{trade.symbol}</span>
-            <Badge variant={trade.side === 'long' ? 'default' : 'destructive'}>
-              {trade.side.toUpperCase()}
-            </Badge>
-            <Badge variant={trade.status === 'closed' ? 'secondary' : 'default'}>
-              {trade.status.toUpperCase()}
-            </Badge>
+          <DialogTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold">{trade.symbol}</span>
+              <Badge variant={trade.side === 'long' ? 'default' : 'destructive'}>
+                {trade.side.toUpperCase()}
+              </Badge>
+              <Badge variant={trade.status === 'closed' ? 'secondary' : 'default'}>
+                {trade.status.toUpperCase()}
+              </Badge>
+            </div>
+            {onOpenFullReview && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleOpenFullReview}
+                className="flex items-center gap-2"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Full Review
+              </Button>
+            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -215,6 +255,34 @@ const TradeDetailModal: React.FC<TradeDetailModalProps> = ({ trade, isOpen, onCl
             </CardHeader>
             <CardContent>
               <p className="text-gray-700 whitespace-pre-wrap">{trade.notes}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Screenshots */}
+        {trade.screenshots && trade.screenshots.length > 0 && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Trade Screenshots</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {trade.screenshots.map((screenshot, index) => (
+                  <div key={index} className="relative group">
+                    <img
+                      src={screenshot}
+                      alt={`Trade screenshot ${index + 1}`}
+                      className="w-full h-48 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => window.open(screenshot, '_blank')}
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-200 rounded-lg flex items-center justify-center">
+                      <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity text-sm font-medium">
+                        Click to view full size
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}

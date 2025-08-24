@@ -4,13 +4,15 @@ import * as React from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "./ui/button"
 import { Trade } from '../types/trade'
+import { NavigationContext } from '../types/navigation'
 
 interface CalendarWidgetProps {
   trades?: Trade[]
   onDateClick?: (date: string) => void
+  onTradeClick?: (tradeId: string, navigationContext: NavigationContext) => void
 }
 
-export default function CalendarWidget({ trades = [], onDateClick }: CalendarWidgetProps) {
+export default function CalendarWidget({ trades = [], onDateClick, onTradeClick }: CalendarWidgetProps) {
   const [currentDate, setCurrentDate] = React.useState(new Date())
 
   const today = new Date()
@@ -174,6 +176,29 @@ export default function CalendarWidget({ trades = [], onDateClick }: CalendarWid
                   if (dateString && onDateClick) {
                     onDateClick(dateString);
                   }
+                  
+                  // If there are trades on this day and onTradeClick is provided, 
+                  // we could also handle direct trade navigation here
+                  if (hasActivity && onTradeClick && dayData.count === 1) {
+                    // Find the single trade for this day
+                    const dayTrades = trades.filter(trade => {
+                      const tradeDate = new Date(trade.date);
+                      return tradeDate.toDateString() === date.toDateString();
+                    });
+                    
+                    if (dayTrades.length === 1) {
+                      const navigationContext: NavigationContext = {
+                        source: 'calendar',
+                        sourceParams: { 
+                          date: dateString,
+                          viewMode: 'calendar'
+                        },
+                        breadcrumb: ['Dashboard', 'Calendar'],
+                        timestamp: Date.now()
+                      };
+                      onTradeClick(dayTrades[0].id, navigationContext);
+                    }
+                  }
                 }}
                 className={`
                   h-12 p-1 border rounded-md flex flex-col items-center justify-center text-sm
@@ -182,7 +207,9 @@ export default function CalendarWidget({ trades = [], onDateClick }: CalendarWid
                   ${hasActivity && isProfitDay ? "bg-green-50 border-green-200" : ""}
                   ${hasActivity && isLossDay ? "bg-red-50 border-red-200" : ""}
                   cursor-pointer hover:bg-accent transition-colors overflow-hidden
+                  ${hasActivity && dayData.count === 1 ? "hover:ring-2 hover:ring-blue-200" : ""}
                 `}
+                title={hasActivity && dayData.count === 1 ? "Click to view trade details" : undefined}
               >
                 <span className={`text-xs ${isToday(date) ? "text-primary-foreground" : ""}`}>{date.getDate()}</span>
                 {hasActivity && (

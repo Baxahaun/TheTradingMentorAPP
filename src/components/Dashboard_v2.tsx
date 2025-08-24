@@ -34,7 +34,30 @@ const DashboardV2 = () => {
   };
 
   const handleCloseDayModal = () => setIsDayModalOpen(false);
-  const handleTradeClick = (trade: Trade) => navigate(`/trade/${trade.id}`);
+  
+  const handleTradeClick = (trade: Trade) => {
+    // Create navigation context for dashboard source
+    const navigationContext = {
+      source: 'dashboard' as const,
+      sourceParams: {},
+      breadcrumb: ['Dashboard'],
+      timestamp: Date.now()
+    };
+    
+    // Set navigation context before navigating
+    import('../lib/navigationContextService').then(({ default: navigationContextService }) => {
+      navigationContextService.setContext(trade.id, navigationContext);
+      navigate(`/trade/${trade.id}`);
+    });
+  };
+
+  const handleTradeClickFromCalendar = (tradeId: string, navigationContext: any) => {
+    // Set navigation context and navigate to trade review
+    import('../lib/navigationContextService').then(({ default: navigationContextService }) => {
+      navigationContextService.setContext(tradeId, navigationContext);
+      navigate(`/trade/${tradeId}`);
+    });
+  };
 
   // Load user's saved layout
   useEffect(() => {
@@ -176,6 +199,7 @@ const DashboardV2 = () => {
                         if (trade) handleTradeClick(trade);
                       }}
                       onDateClick={handleDateClick}
+                      onTradeClick={handleTradeClickFromCalendar}
                     />
                   ) : (
                     <EmptyWidgetSlot

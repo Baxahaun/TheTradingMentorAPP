@@ -1,5 +1,7 @@
 @import "react-grid-layout/css/styles.css";
 @import "react-resizable/css/styles.css";
+@import './styles/accessibility.css';
+@import './styles/mobile.css';
 
 @tailwind base;
 @tailwind components;
@@ -101,6 +103,15 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Custom utilities */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;  /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar { 
+  display: none;  /* Safari and Chrome */
 }
 
 /* Custom progress bar utility */

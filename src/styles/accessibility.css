@@ -1,0 +1,300 @@
+/* Accessibility Styles */
+
+/* High Contrast Mode */
+.high-contrast {
+  --color-background: #000000;
+  --color-foreground: #ffffff;
+  --color-primary: #ffffff;
+  --color-primary-foreground: #000000;
+  --color-secondary: #333333;
+  --color-secondary-foreground: #ffffff;
+  --color-muted: #222222;
+  --color-muted-foreground: #cccccc;
+  --color-accent: #ffffff;
+  --color-accent-foreground: #000000;
+  --color-destructive: #ff0000;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #ffffff;
+  --color-input: #333333;
+  --color-ring: #ffffff;
+}
+
+.high-contrast * {
+  border-color: var(--color-border) !important;
+}
+
+.high-contrast .bg-white {
+  background-color: var(--color-background) !important;
+  color: var(--color-foreground) !important;
+}
+
+.high-contrast .text-gray-600,
+.high-contrast .text-gray-500,
+.high-contrast .text-gray-400 {
+  color: var(--color-muted-foreground) !important;
+}
+
+.high-contrast .bg-gray-50,
+.high-contrast .bg-gray-100 {
+  background-color: var(--color-muted) !important;
+}
+
+/* Reduced Motion */
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+.reduced-motion .animate-spin,
+.reduced-motion .animate-pulse,
+.reduced-motion .animate-bounce {
+  animation: none !important;
+}
+
+/* Font Size Adjustments */
+.font-small {
+  font-size: 0.875rem;
+}
+
+.font-small .text-sm {
+  font-size: 0.75rem;
+}
+
+.font-small .text-lg {
+  font-size: 1rem;
+}
+
+.font-small .text-xl {
+  font-size: 1.125rem;
+}
+
+.font-small .text-2xl {
+  font-size: 1.25rem;
+}
+
+.font-medium {
+  font-size: 1rem;
+}
+
+.font-large {
+  font-size: 1.125rem;
+}
+
+.font-large .text-sm {
+  font-size: 1rem;
+}
+
+.font-large .text-lg {
+  font-size: 1.25rem;
+}
+
+.font-large .text-xl {
+  font-size: 1.5rem;
+}
+
+.font-large .text-2xl {
+  font-size: 1.75rem;
+}
+
+/* Keyboard Navigation */
+.keyboard-navigation-active *:focus {
+  outline: 2px solid #3b82f6 !important;
+  outline-offset: 2px !important;
+}
+
+.keyboard-navigation *:focus-visible {
+  outline: 2px solid #3b82f6 !important;
+  outline-offset: 2px !important;
+}
+
+/* Skip Links */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: #000;
+  color: #fff;
+  padding: 8px;
+  text-decoration: none;
+  z-index: 1000;
+  border-radius: 4px;
+}
+
+.skip-link:focus {
+  top: 6px;
+}
+
+/* Screen Reader Only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Focus Management */
+.focus-trap {
+  position: relative;
+}
+
+.focus-trap::before,
+.focus-trap::after {
+  content: '';
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Touch Targets */
+@media (max-width: 768px) {
+  button,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
+/* High Contrast Focus Indicators */
+.high-contrast *:focus,
+.high-contrast *:focus-visible {
+  outline: 3px solid #ffffff !important;
+  outline-offset: 2px !important;
+}
+
+/* Mobile Accessibility */
+@media (max-width: 768px) {
+  /* Larger touch targets */
+  .mobile-touch-target {
+    min-height: 48px;
+    min-width: 48px;
+  }
+  
+  /* Better spacing for mobile */
+  .mobile-spacing {
+    padding: 1rem;
+  }
+  
+  /* Improved readability */
+  .mobile-text {
+    line-height: 1.6;
+  }
+}
+
+/* Responsive Typography */
+@media (max-width: 640px) {
+  .responsive-text-sm {
+    font-size: 0.875rem;
+  }
+  
+  .responsive-text-base {
+    font-size: 1rem;
+  }
+  
+  .responsive-text-lg {
+    font-size: 1.125rem;
+  }
+  
+  .responsive-text-xl {
+    font-size: 1.25rem;
+  }
+  
+  .responsive-text-2xl {
+    font-size: 1.5rem;
+  }
+}
+
+/* Color Blind Friendly Colors */
+.colorblind-safe {
+  --success-color: #0066cc;
+  --warning-color: #ff9900;
+  --error-color: #cc0000;
+  --info-color: #6600cc;
+}
+
+/* Print Styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-only {
+    display: block !important;
+  }
+  
+  * {
+    background: transparent !important;
+    color: black !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  
+  a,
+  a:visited {
+    text-decoration: underline;
+  }
+  
+  a[href]:after {
+    content: " (" attr(href) ")";
+  }
+  
+  abbr[title]:after {
+    content: " (" attr(title) ")";
+  }
+  
+  .ir a:after,
+  a[href^="javascript:"]:after,
+  a[href^="#"]:after {
+    content: "";
+  }
+  
+  pre,
+  blockquote {
+    border: 1px solid #999;
+    page-break-inside: avoid;
+  }
+  
+  thead {
+    display: table-header-group;
+  }
+  
+  tr,
+  img {
+    page-break-inside: avoid;
+  }
+  
+  img {
+    max-width: 100% !important;
+  }
+  
+  p,
+  h2,
+  h3 {
+    orphans: 3;
+    widows: 3;
+  }
+  
+  h2,
+  h3 {
+    page-break-after: avoid;
+  }
+}

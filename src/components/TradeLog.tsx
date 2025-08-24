@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardWidget from './DashboardWidget';
 import { AVAILABLE_WIDGETS } from '../config/dashboardConfig';
 import EditTradeModal from './EditTradeModal';
+import TradeDetailModal from './TradeDetailModal';
 import { Filter, X, ChevronDown, Search, Edit, Trash2, TrendingUp, TrendingDown, ArrowUpDown, MoreHorizontal, Hash, CheckSquare, Square, Tags, Share2, Copy } from 'lucide-react';
 import { useTradeContext } from '../contexts/TradeContext';
 import { TagDisplay } from './ui/tag-display';
@@ -13,10 +15,13 @@ import { tagSearchService, TagSearchResult } from '../lib/tagSearchService';
 import { Trade } from '../types/trade';
 import { cn } from '../lib/utils';
 import { useTagFilterUrlState, createShareableUrl } from '../hooks/useUrlState';
+import { NavigationContext } from '../types/navigation';
 
 const TradeLog: React.FC = () => {
+  const navigate = useNavigate();
   const { trades, deleteTrade, updateTrade } = useTradeContext();
   const [editingTradeId, setEditingTradeId] = useState<string | null>(null);
+  const [viewingTradeId, setViewingTradeId] = useState<string | null>(null);
   
   // Filter states
   const [showFilters, setShowFilters] = useState(false);
@@ -223,6 +228,41 @@ const TradeLog: React.FC = () => {
 
   const handleEditTrade = (tradeId: string) => {
     setEditingTradeId(tradeId);
+  };
+
+  const handleViewTrade = (tradeId: string) => {
+    // Create navigation context for trade list source
+    // Map TradeLog filters to TradeListFilters format
+    const mappedFilters = {
+      status: filters.status !== 'all' ? filters.status as 'open' | 'closed' : undefined,
+      currencyPairs: filters.symbol ? [filters.symbol] : undefined,
+      dateRange: (filters.dateFrom && filters.dateTo) ? {
+        start: filters.dateFrom,
+        end: filters.dateTo
+      } : undefined,
+      tags: selectedTags.length > 0 ? selectedTags : undefined,
+      searchText: searchQuery.trim() !== '' ? searchQuery : undefined
+    };
+
+    const navigationContext = {
+      source: 'trade-list' as const,
+      sourceParams: {
+        page: 1, // Could be enhanced to track actual page
+        filters: mappedFilters,
+        searchQuery: searchQuery,
+        selectedTags: selectedTags,
+        tagFilterMode: tagFilterMode
+      },
+      breadcrumb: ['Dashboard', 'Trade List'],
+      timestamp: Date.now()
+    };
+    
+    // Set navigation context and navigate to trade review
+    import('../lib/navigationContextService').then(({ default: navigationContextService }) => {
+      navigationContextService.setContext(tradeId, navigationContext);
+      // Navigate to trade review within the sidebar layout
+      navigate(`/trade/${tradeId}`);
+    });
   };
 
   // Multi-select handlers
@@ -740,16 +780,20 @@ const TradeLog: React.FC = () => {
               {filteredTrades.map((trade) => (
                 <tr
                   key={trade.id}
-                  className={`group transition-all duration-200 hover:shadow-sm ${
+                  className={`group transition-all duration-200 hover:shadow-sm cursor-pointer ${
                     selectedTradeIds.includes(trade.id)
                       ? 'bg-blue-50 hover:bg-blue-100'
                       : 'hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50'
                   }`}
+                  onClick={() => handleViewTrade(trade.id)}
                 >
                   {/* Checkbox */}
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button
-                      onClick={() => handleSelectTrade(trade.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectTrade(trade.id);
+                      }}
                       className="flex items-center justify-center w-5 h-5 text-gray-500 hover:text-gray-700 transition-colors"
                     >
                       {selectedTradeIds.includes(trade.id) ? (
@@ -845,14 +889,20 @@ const TradeLog: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-center">
                     <div className="flex items-center justify-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                       <button
-                        onClick={() => handleEditTrade(trade.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditTrade(trade.id);
+                        }}
                         className="h-8 w-8 p-0 hover:bg-blue-100 hover:text-blue-600 transition-colors rounded-md flex items-center justify-center"
                         title="Edit trade"
                       >
                         <Edit className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => handleDeleteTrade(trade.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteTrade(trade.id);
+                        }}
                         className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600 transition-colors rounded-md flex items-center justify-center"
                         title="Delete trade"
                       >
@@ -890,6 +940,15 @@ const TradeLog: React.FC = () => {
           trade={trades.find(t => t.id === editingTradeId) || null}
           isOpen={!!editingTradeId}
           onClose={() => setEditingTradeId(null)}
+        />
+      )}
+
+      {/* Trade Detail Modal */}
+      {viewingTradeId && (
+        <TradeDetailModal
+          trade={trades.find(t => t.id === viewingTradeId) || null}
+          isOpen={!!viewingTradeId}
+          onClose={() => setViewingTradeId(null)}
         />
       )}
 

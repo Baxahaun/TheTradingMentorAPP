@@ -5,6 +5,8 @@ import { accountService } from '../lib/accountService';
 import { DataMigrationService } from '../lib/dataMigration';
 import { EnhancedDataMigrationService } from '../lib/enhancedDataMigration';
 import { widgetDataService } from '../lib/widgetDataService';
+import navigationContextService from '../lib/navigationContextService';
+import { NavigationContext } from '../types/navigation';
 import { useAuth } from './AuthContext';
 
 interface TradeContextType {
@@ -39,6 +41,18 @@ interface TradeContextType {
   };
   runEnhancedMigration: () => Promise<void>;
   getUnclassifiedTrades: () => Trade[];
+  
+  // Navigation and routing (NEW)
+  getTradeById: (id: string) => Trade | undefined;
+  getTradeSequence: (tradeId: string) => {
+    current: Trade | null;
+    previous: Trade | null;
+    next: Trade | null;
+    index: number;
+    total: number;
+  };
+  validateTradeAccess: (tradeId: string) => boolean;
+  setTradeNavigationContext: (tradeId: string, context: NavigationContext) => void;
 }
 
 const TradeContext = createContext<TradeContextType | undefined>(undefined);
@@ -364,6 +378,38 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
+  // Navigation and routing functions (NEW)
+  const getTradeById = (id: string): Trade | undefined => {
+    return trades.find(trade => trade.id === id);
+  };
+
+  const getTradeSequence = (tradeId: string) => {
+    const currentIndex = trades.findIndex(trade => trade.id === tradeId);
+    const current = currentIndex >= 0 ? trades[currentIndex] : null;
+    const previous = currentIndex > 0 ? trades[currentIndex - 1] : null;
+    const next = currentIndex >= 0 && currentIndex < trades.length - 1 ? trades[currentIndex + 1] : null;
+
+    return {
+      current,
+      previous,
+      next,
+      index: currentIndex,
+      total: trades.length
+    };
+  };
+
+  const validateTradeAccess = (tradeId: string): boolean => {
+    if (!user) return false;
+    const trade = getTradeById(tradeId);
+    return Boolean(trade);
+  };
+
+  const setTradeNavigationContext = (tradeId: string, context: NavigationContext): void => {
+    if (validateTradeAccess(tradeId)) {
+      navigationContextService.setContext(tradeId, context);
+    }
+  };
+
   return (
     <TradeContext.Provider value={{
       // Trade management
@@ -394,6 +440,12 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       migrationStatus,
       runEnhancedMigration,
       getUnclassifiedTrades,
+      
+      // Navigation and routing
+      getTradeById,
+      getTradeSequence,
+      validateTradeAccess,
+      setTradeNavigationContext,
     }}>
       {children}
     </TradeContext.Provider>
