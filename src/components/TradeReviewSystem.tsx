@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Trade } from '../types/trade';
+import { Trade, TradeWithStrategy } from '../types/trade';
+import { ProfessionalStrategy } from '../types/strategy';
 import { NavigationContext } from '../types/navigation';
 import { TradeReviewMode, ViewState, TradeReviewError, TradeReviewErrorType } from '../types/tradeReview';
 import { useTradeContext } from '../contexts/TradeContext';
@@ -14,6 +15,7 @@ import { AccessibilityButton } from './accessibility/AccessibilityControls';
 import { Button } from './ui/button';
 import { toast } from './ui/use-toast';
 import { ArrowLeft, Copy, Check } from 'lucide-react';
+import { StrategyPerformanceService } from '../services/StrategyPerformanceService';
 
 interface TradeReviewSystemProps {
   tradeId?: string;
@@ -21,6 +23,8 @@ interface TradeReviewSystemProps {
   initialMode?: TradeReviewMode;
   onNavigateBack?: (context: NavigationContext) => void;
   embedded?: boolean;
+  availableStrategies?: ProfessionalStrategy[];
+  onNavigateToStrategy?: (strategyId: string) => void;
 }
 
 const TradeReviewSystem: React.FC<TradeReviewSystemProps> = ({
@@ -28,7 +32,9 @@ const TradeReviewSystem: React.FC<TradeReviewSystemProps> = ({
   navigationContext: propNavigationContext,
   initialMode = 'view',
   onNavigateBack,
-  embedded = false
+  embedded = false,
+  availableStrategies = [],
+  onNavigateToStrategy
 }) => {
   const { tradeId: paramTradeId } = useParams<{ tradeId: string }>();
   const navigate = useNavigate();
@@ -47,7 +53,7 @@ const TradeReviewSystem: React.FC<TradeReviewSystemProps> = ({
   
   // State management
   const [trade, setTrade] = useState<Trade | null>(null);
-  const [editedTrade, setEditedTrade] = useState<Trade | null>(null);
+  const [editedTrade, setEditedTrade] = useState<TradeWithStrategy | null>(null);
   const [viewState, setViewState] = useState<ViewState>({
     mode: urlState.mode || initialMode,
     activePanel: urlState.panel || 'data',
@@ -58,6 +64,9 @@ const TradeReviewSystem: React.FC<TradeReviewSystemProps> = ({
   const [error, setError] = useState<TradeReviewError | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [shareableUrl, setShareableUrl] = useState<string>('');
+
+  // Services
+  const performanceService = new StrategyPerformanceService();
 
   // Find current trade and navigation info
   const currentTradeIndex = trades.findIndex(t => t.id === currentTradeId);
@@ -114,7 +123,7 @@ const TradeReviewSystem: React.FC<TradeReviewSystemProps> = ({
   }, [updateUrlState]);
 
   // Handle trade field changes
-  const handleTradeChange = useCallback((field: keyof Trade, value: any) => {
+  const handleTradeChange = useCallback((field: keyof TradeWithStrategy, value: any) => {
     if (!editedTrade) return;
     
     setEditedTrade(prev => prev ? { ...prev, [field]: value } : null);
@@ -287,6 +296,28 @@ const TradeReviewSystem: React.FC<TradeReviewSystemProps> = ({
     }
   }, [generateShareableUrl, editedTrade]);
 
+  // Handle performance update
+  const handlePerformanceUpdate = useCallback(async (strategyId: string) => {
+    if (!editedTrade || editedTrade.status !== 'closed') return;
+    
+    try {
+      await performanceService.updatePerformanceMetrics(strategyId, editedTrade);
+      toast({
+        title: "Performance Updated",
+        description: "Strategy performance metrics have been updated.",
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Error updating performance:', error);
+      toast({
+        title: "Update Failed",
+        description: "Failed to update strategy performance metrics.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  }, [editedTrade, performanceService]);
+
   // Auto-save functionality
   useEffect(() => {
     if (!viewState.unsavedChanges || viewState.mode !== 'edit') return;
@@ -408,8 +439,11 @@ const TradeReviewSystem: React.FC<TradeReviewSystemProps> = ({
             activePanel={viewState.activePanel}
             isMobile={isMobile}
             isTablet={isTablet}
+            availableStrategies={availableStrategies}
             onTradeChange={handleTradeChange}
             onPanelChange={handlePanelChange}
+            onNavigateToStrategy={onNavigateToStrategy}
+            onPerformanceUpdate={handlePerformanceUpdate}
           />
         </main>
         

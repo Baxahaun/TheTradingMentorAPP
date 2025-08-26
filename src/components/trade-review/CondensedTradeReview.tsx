@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Trade } from '../../types/trade';
+import { TradeWithStrategy } from '../../types/trade';
+import { ProfessionalStrategy } from '../../types/strategy';
 import { TradeReviewMode } from '../../types/tradeReview';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -7,6 +9,8 @@ import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import TradingViewChart from './TradingViewChart';
+import StrategySelector from '../trade-strategy/StrategySelector';
+import PerformanceUpdateIndicator from '../trade-strategy/PerformanceUpdateIndicator';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -24,12 +28,15 @@ import {
 
 interface CondensedTradeReviewProps {
   trade: Trade;
-  editedTrade: Trade;
+  editedTrade: TradeWithStrategy;
   isEditing: boolean;
   currentMode: TradeReviewMode;
   isMobile?: boolean;
   isTablet?: boolean;
-  onTradeChange: (field: keyof Trade, value: any) => void;
+  availableStrategies?: ProfessionalStrategy[];
+  onTradeChange: (field: keyof TradeWithStrategy, value: any) => void;
+  onNavigateToStrategy?: (strategyId: string) => void;
+  onPerformanceUpdate?: (strategyId: string) => void;
 }
 
 const CondensedTradeReview: React.FC<CondensedTradeReviewProps> = ({
@@ -39,7 +46,10 @@ const CondensedTradeReview: React.FC<CondensedTradeReviewProps> = ({
   currentMode,
   isMobile = false,
   isTablet = false,
-  onTradeChange
+  availableStrategies = [],
+  onTradeChange,
+  onNavigateToStrategy,
+  onPerformanceUpdate
 }) => {
   // Calculate key metrics
   const profitLoss = editedTrade.exitPrice && editedTrade.entryPrice 
@@ -161,14 +171,30 @@ const CondensedTradeReview: React.FC<CondensedTradeReviewProps> = ({
             )}
 
             {/* Strategy */}
-            {editedTrade.strategy && (
+            {(editedTrade.strategyName || editedTrade.strategy) && (
               <div className="flex items-center justify-between py-1">
                 <div className="flex items-center text-gray-600">
                   <Target className="w-4 h-4 mr-3" />
                   <span className="text-sm font-medium">Strategy</span>
                 </div>
                 <Badge variant="outline" className="text-xs px-2 py-1">
-                  {editedTrade.strategy}
+                  {editedTrade.strategyName || editedTrade.strategy}
+                </Badge>
+              </div>
+            )}
+
+            {/* Strategy Adherence Score */}
+            {editedTrade.adherenceScore !== undefined && (
+              <div className="flex items-center justify-between py-1">
+                <div className="flex items-center text-gray-600">
+                  <BarChart3 className="w-4 h-4 mr-3" />
+                  <span className="text-sm font-medium">Adherence</span>
+                </div>
+                <Badge 
+                  variant={editedTrade.adherenceScore >= 90 ? 'default' : editedTrade.adherenceScore >= 70 ? 'secondary' : 'destructive'}
+                  className="text-xs px-2 py-1"
+                >
+                  {editedTrade.adherenceScore.toFixed(0)}%
                 </Badge>
               </div>
             )}
@@ -207,6 +233,51 @@ const CondensedTradeReview: React.FC<CondensedTradeReviewProps> = ({
               onNotesChange={(notes) => onTradeChange('notes', notes)}
             />
           </div>
+
+          {/* Strategy Integration */}
+          {availableStrategies.length > 0 && (
+            <div className="pt-3 border-t border-gray-200">
+              <label className="text-sm font-semibold text-gray-700 block mb-2">
+                Strategy Assignment
+              </label>
+              <StrategySelector
+                trade={editedTrade}
+                availableStrategies={availableStrategies}
+                selectedStrategyId={editedTrade.strategyId}
+                showSuggestions={isEditing}
+                compact={true}
+                onStrategySelect={(strategyId) => {
+                  onTradeChange('strategyId', strategyId);
+                  if (strategyId) {
+                    const strategy = availableStrategies.find(s => s.id === strategyId);
+                    if (strategy) {
+                      onTradeChange('strategyName', strategy.title);
+                      onTradeChange('strategyVersion', strategy.version);
+                    }
+                  } else {
+                    onTradeChange('strategyName', undefined);
+                    onTradeChange('strategyVersion', undefined);
+                    onTradeChange('adherenceScore', undefined);
+                    onTradeChange('deviations', undefined);
+                  }
+                }}
+                onNavigateToStrategy={onNavigateToStrategy}
+              />
+            </div>
+          )}
+
+          {/* Performance Update Indicator */}
+          {editedTrade.strategyId && editedTrade.status === 'closed' && (
+            <div className="pt-3 border-t border-gray-200">
+              <PerformanceUpdateIndicator
+                trade={editedTrade}
+                strategy={availableStrategies.find(s => s.id === editedTrade.strategyId)!}
+                isTradeComplete={editedTrade.status === 'closed' && !!editedTrade.exitPrice}
+                onNavigateToStrategy={onNavigateToStrategy}
+                onRefreshPerformance={onPerformanceUpdate}
+              />
+            </div>
+          )}
 
           {/* Quick Actions */}
           {isEditing && (

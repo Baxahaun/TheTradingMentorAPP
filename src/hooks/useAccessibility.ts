@@ -1,189 +1,314 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
+/**
+ * Accessibility preferences interface
+ */
 export interface AccessibilityPreferences {
   highContrast: boolean;
   reducedMotion: boolean;
-  fontSize: 'small' | 'medium' | 'large';
+  screenReaderOptimized: boolean;
   keyboardNavigation: boolean;
+  fontSize: 'small' | 'medium' | 'large' | 'extra-large';
+  focusIndicators: boolean;
 }
 
-const DEFAULT_PREFERENCES: AccessibilityPreferences = {
-  highContrast: false,
-  reducedMotion: false,
-  fontSize: 'medium',
-  keyboardNavigation: true
-};
+/**
+ * Hook for managing keyboard navigation
+ */
+export function useKeyboardNavigation(items: any[], onSelect: (item: any) => void) {
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-export const useAccessibility = () => {
-  const [preferences, setPreferences] = useState<AccessibilityPreferences>(DEFAULT_PREFERENCES);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Load preferences from localStorage and system preferences
   useEffect(() => {
-    const loadPreferences = () => {
-      try {
-        const stored = localStorage.getItem('accessibility-preferences');
-        const storedPrefs = stored ? JSON.parse(stored) : {};
-        
-        // Check system preferences
-        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        const prefersHighContrast = window.matchMedia('(prefers-contrast: high)').matches;
-        
-        const newPreferences: AccessibilityPreferences = {
-          ...DEFAULT_PREFERENCES,
-          ...storedPrefs,
-          reducedMotion: storedPrefs.reducedMotion ?? prefersReducedMotion,
-          highContrast: storedPrefs.highContrast ?? prefersHighContrast
-        };
-        
-        setPreferences(newPreferences);
-        applyPreferences(newPreferences);
-      } catch (error) {
-        console.error('Error loading accessibility preferences:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadPreferences();
-  }, []);
-
-  // Apply preferences to document
-  const applyPreferences = useCallback((prefs: AccessibilityPreferences) => {
-    const root = document.documentElement;
-    
-    // High contrast mode
-    if (prefs.highContrast) {
-      root.classList.add('high-contrast');
-    } else {
-      root.classList.remove('high-contrast');
-    }
-    
-    // Reduced motion
-    if (prefs.reducedMotion) {
-      root.classList.add('reduced-motion');
-    } else {
-      root.classList.remove('reduced-motion');
-    }
-    
-    // Font size
-    root.classList.remove('font-small', 'font-medium', 'font-large');
-    root.classList.add(`font-${prefs.fontSize}`);
-    
-    // Keyboard navigation
-    if (prefs.keyboardNavigation) {
-      root.classList.add('keyboard-navigation');
-    } else {
-      root.classList.remove('keyboard-navigation');
-    }
-  }, []);
-
-  // Update preferences
-  const updatePreferences = useCallback((updates: Partial<AccessibilityPreferences>) => {
-    const newPreferences = { ...preferences, ...updates };
-    setPreferences(newPreferences);
-    applyPreferences(newPreferences);
-    
-    try {
-      localStorage.setItem('accessibility-preferences', JSON.stringify(newPreferences));
-    } catch (error) {
-      console.error('Error saving accessibility preferences:', error);
-    }
-  }, [preferences, applyPreferences]);
-
-  // Toggle specific preference
-  const togglePreference = useCallback((key: keyof AccessibilityPreferences) => {
-    if (typeof preferences[key] === 'boolean') {
-      updatePreferences({ [key]: !preferences[key] });
-    }
-  }, [preferences, updatePreferences]);
-
-  return {
-    preferences,
-    isLoading,
-    updatePreferences,
-    togglePreference
-  };
-};
-
-// Hook for keyboard navigation
-export const useKeyboardNavigation = (enabled: boolean = true) => {
-  useEffect(() => {
-    if (!enabled) return;
-
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Skip if user is typing in an input
-      if (event.target instanceof HTMLInputElement || 
-          event.target instanceof HTMLTextAreaElement ||
-          event.target instanceof HTMLSelectElement) {
-        return;
+      if (!containerRef.current) return;
+
+      switch (event.key) {
+        case 'ArrowDown':
+          event.preventDefault();
+          setFocusedIndex(prev => Math.min(prev + 1, items.length - 1));
+          break;
+        case 'ArrowUp':
+          event.preventDefault();
+          setFocusedIndex(prev => Math.max(prev - 1, 0));
+          break;
+        case 'Enter':
+        case ' ':
+          event.preventDefault();
+          if (focusedIndex >= 0 && focusedIndex < items.length) {
+            onSelect(items[focusedIndex]);
+          }
+          break;
+        case 'Escape':
+          setFocusedIndex(-1);
+          break;
       }
-
-      // Add keyboard navigation indicators
-      document.body.classList.add('keyboard-navigation-active');
     };
 
-    const handleMouseDown = () => {
-      document.body.classList.remove('keyboard-navigation-active');
-    };
+    const container = containerRef.current;
+    if (container) {
+      container.addEventListener('keydown', handleKeyDown);
+      return () => container.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [items, focusedIndex, onSelect]);
 
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('mousedown', handleMouseDown);
+  return { focusedIndex, setFocusedIndex, containerRef };
+}
 
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('mousedown', handleMouseDown);
-    };
-  }, [enabled]);
-};
+/**
+ * Hook for managing focus trap in modals
+ */
+export function useFocusTrap(isActive: boolean) {
+  const containerRef = useRef<HTMLDivElement>(null);
 
-// Hook for focus management
-export const useFocusManagement = () => {
-  const focusElement = useCallback((selector: string, delay: number = 0) => {
-    setTimeout(() => {
-      const element = document.querySelector(selector) as HTMLElement;
-      if (element) {
-        element.focus();
-      }
-    }, delay);
-  }, []);
+  useEffect(() => {
+    if (!isActive || !containerRef.current) return;
 
-  const trapFocus = useCallback((containerSelector: string) => {
-    const container = document.querySelector(containerSelector) as HTMLElement;
-    if (!container) return () => {};
-
+    const container = containerRef.current;
     const focusableElements = container.querySelectorAll(
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    ) as NodeListOf<HTMLElement>;
+    );
+    const firstElement = focusableElements[0] as HTMLElement;
+    const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
 
-    const firstElement = focusableElements[0];
-    const lastElement = focusableElements[focusableElements.length - 1];
+    const handleTabKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return;
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Tab') {
-        if (event.shiftKey) {
-          if (document.activeElement === firstElement) {
-            event.preventDefault();
-            lastElement.focus();
-          }
-        } else {
-          if (document.activeElement === lastElement) {
-            event.preventDefault();
-            firstElement.focus();
-          }
+      if (event.shiftKey) {
+        if (document.activeElement === firstElement) {
+          event.preventDefault();
+          lastElement?.focus();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          event.preventDefault();
+          firstElement?.focus();
         }
       }
     };
 
-    container.addEventListener('keydown', handleKeyDown);
-    
+    document.addEventListener('keydown', handleTabKey);
+    firstElement?.focus();
+
     return () => {
-      container.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keydown', handleTabKey);
     };
+  }, [isActive]);
+
+  return containerRef;
+}
+
+/**
+ * Hook for managing high contrast mode
+ */
+export function useHighContrast() {
+  const [isHighContrast, setIsHighContrast] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('high-contrast') === 'true' ||
+             window.matchMedia('(prefers-contrast: high)').matches;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-contrast: high)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      if (!localStorage.getItem('high-contrast')) {
+        setIsHighContrast(e.matches);
+      }
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
+  const toggleHighContrast = () => {
+    const newValue = !isHighContrast;
+    setIsHighContrast(newValue);
+    localStorage.setItem('high-contrast', newValue.toString());
+    
+    if (newValue) {
+      document.documentElement.classList.add('high-contrast');
+    } else {
+      document.documentElement.classList.remove('high-contrast');
+    }
+  };
+
+  useEffect(() => {
+    if (isHighContrast) {
+      document.documentElement.classList.add('high-contrast');
+    } else {
+      document.documentElement.classList.remove('high-contrast');
+    }
+  }, [isHighContrast]);
+
+  return { isHighContrast, toggleHighContrast };
+}
+
+/**
+ * Hook for screen reader announcements
+ */
+export function useScreenReader() {
+  const announce = (message: string, priority: 'polite' | 'assertive' = 'polite') => {
+    const announcement = document.createElement('div');
+    announcement.setAttribute('aria-live', priority);
+    announcement.setAttribute('aria-atomic', 'true');
+    announcement.className = 'sr-only';
+    announcement.textContent = message;
+    
+    document.body.appendChild(announcement);
+    
+    setTimeout(() => {
+      document.body.removeChild(announcement);
+    }, 1000);
+  };
+
+  return { announce };
+}
+
+/**
+ * Hook for managing focus within components
+ */
+export function useFocusManagement() {
+  const focusRef = useRef<HTMLElement>(null);
+  const [isFocused, setIsFocused] = useState(false);
+
+  const focusElement = () => {
+    if (focusRef.current) {
+      focusRef.current.focus();
+      setIsFocused(true);
+    }
+  };
+
+  const blurElement = () => {
+    if (focusRef.current) {
+      focusRef.current.blur();
+      setIsFocused(false);
+    }
+  };
+
+  const handleFocus = () => setIsFocused(true);
+  const handleBlur = () => setIsFocused(false);
+
+  useEffect(() => {
+    const element = focusRef.current;
+    if (element) {
+      element.addEventListener('focus', handleFocus);
+      element.addEventListener('blur', handleBlur);
+      
+      return () => {
+        element.removeEventListener('focus', handleFocus);
+        element.removeEventListener('blur', handleBlur);
+      };
+    }
   }, []);
 
   return {
+    focusRef,
+    isFocused,
     focusElement,
-    trapFocus
+    blurElement
   };
-};
+}
+
+/**
+ * Main accessibility hook that combines all accessibility features
+ */
+export function useAccessibility() {
+  const { isHighContrast, toggleHighContrast } = useHighContrast();
+  const { announce } = useScreenReader();
+  const { focusRef, isFocused, focusElement, blurElement } = useFocusManagement();
+
+  // Accessibility preferences state
+  const [preferences, setPreferences] = useState<AccessibilityPreferences>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('accessibility-preferences');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    }
+    return {
+      highContrast: false,
+      reducedMotion: false,
+      screenReaderOptimized: false,
+      keyboardNavigation: true,
+      fontSize: 'medium',
+      focusIndicators: true
+    };
+  });
+
+  // Reduced motion preference
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      setPrefersReducedMotion(e.matches);
+      setPreferences(prev => ({ ...prev, reducedMotion: e.matches }));
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
+  // Save preferences to localStorage
+  useEffect(() => {
+    localStorage.setItem('accessibility-preferences', JSON.stringify(preferences));
+  }, [preferences]);
+
+  const updatePreferences = (updates: Partial<AccessibilityPreferences>) => {
+    setPreferences(prev => ({ ...prev, ...updates }));
+  };
+
+  const togglePreference = (key: keyof AccessibilityPreferences) => {
+    setPreferences(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  return {
+    // Preferences
+    preferences,
+    updatePreferences,
+    togglePreference,
+    
+    // High contrast
+    isHighContrast,
+    toggleHighContrast,
+    
+    // Screen reader
+    announce,
+    
+    // Focus management
+    focusRef,
+    isFocused,
+    focusElement,
+    blurElement,
+    
+    // Motion preferences
+    prefersReducedMotion,
+    
+    // Utility functions
+    setFocusable: (element: HTMLElement, focusable: boolean) => {
+      element.tabIndex = focusable ? 0 : -1;
+    },
+    
+    announcePageChange: (pageName: string) => {
+      announce(`Navigated to ${pageName}`, 'assertive');
+    },
+    
+    announceError: (error: string) => {
+      announce(`Error: ${error}`, 'assertive');
+    },
+    
+    announceSuccess: (message: string) => {
+      announce(`Success: ${message}`, 'polite');
+    }
+  };
+}

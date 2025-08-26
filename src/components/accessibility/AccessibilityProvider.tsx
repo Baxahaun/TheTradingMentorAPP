@@ -1,5 +1,5 @@
 import React, { createContext, useContext, ReactNode } from 'react';
-import { useAccessibility, useKeyboardNavigation, AccessibilityPreferences } from '../../hooks/useAccessibility';
+import { useAccessibility, AccessibilityPreferences } from '../../hooks/useAccessibility';
 
 interface AccessibilityContextType {
   preferences: AccessibilityPreferences;
@@ -16,9 +16,6 @@ interface AccessibilityProviderProps {
 
 export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ children }) => {
   const accessibility = useAccessibility();
-  
-  // Enable keyboard navigation
-  useKeyboardNavigation(accessibility.preferences.keyboardNavigation);
 
   return (
     <AccessibilityContext.Provider value={accessibility}>
