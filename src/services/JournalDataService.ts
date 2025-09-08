@@ -372,18 +372,21 @@ export class JournalDataService {
     endDate: string
   ): Promise<JournalEntry[]> {
     try {
-      const queryBuilder = new JournalEntryQueryBuilder(db, userId);
-      const q = queryBuilder
-        .dateRange(startDate, endDate)
-        .orderByDate('desc')
-        .build();
-
-      const querySnapshot = await getDocs(q);
+      // Simple approach: get all entries and filter client-side to avoid index requirements
+      const collectionRef = collection(db, JOURNAL_COLLECTIONS.JOURNAL_ENTRIES(userId));
+      const querySnapshot = await getDocs(collectionRef);
       const entries: JournalEntry[] = [];
 
       querySnapshot.forEach((doc) => {
-        entries.push(firestoreToJournalEntry(doc.id, doc.data() as JournalEntryDocument));
+        const entry = firestoreToJournalEntry(doc.id, doc.data() as JournalEntryDocument);
+        // Client-side date filtering
+        if (entry.date >= startDate && entry.date <= endDate) {
+          entries.push(entry);
+        }
       });
+
+      // Sort client-side since we removed orderBy to avoid index requirement
+      entries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
       return entries;
     } catch (error) {

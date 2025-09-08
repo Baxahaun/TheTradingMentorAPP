@@ -9,9 +9,25 @@ import {
   JournalEntry, 
   JournalTemplate, 
   JournalPreferences,
-  ReminderSettings,
   JournalCompletionStats
 } from '../types/journal';
+
+import { 
+  Firestore, 
+  Timestamp, 
+  Query, 
+  WriteBatch, 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  limit,
+  doc,
+  writeBatch,
+  serverTimestamp,
+  setDoc,
+  deleteDoc
+} from 'firebase/firestore';
 
 // ===== FIRESTORE COLLECTION PATHS =====
 
@@ -19,11 +35,14 @@ import {
  * Firestore collection paths for journal data
  */
 export const JOURNAL_COLLECTIONS = {
-  // User-specific collections
+  // User-specific collections (original design)
   JOURNAL_ENTRIES: (userId: string) => `users/${userId}/journalEntries`,
   JOURNAL_TEMPLATES: (userId: string) => `users/${userId}/journalTemplates`,
   JOURNAL_PREFERENCES: (userId: string) => `users/${userId}/journalSettings/preferences`,
   JOURNAL_STATS: (userId: string) => `users/${userId}/journalSettings/stats`,
+  
+  // Root-level collections (fallback for existing data)
+  JOURNAL_ENTRIES_ROOT: 'journalEntries',
   
   // Global collections
   SYSTEM_TEMPLATES: 'systemJournalTemplates',
@@ -35,10 +54,10 @@ export const JOURNAL_COLLECTIONS = {
 /**
  * Journal entry document structure in Firestore
  */
-export interface JournalEntryDocument extends Omit<JournalEntry, 'id'> {
+export interface JournalEntryDocument extends Omit<JournalEntry, 'id' | 'createdAt' | 'updatedAt'> {
   // Firestore-specific fields
-  createdAt: FirebaseFirestore.Timestamp;
-  updatedAt: FirebaseFirestore.Timestamp;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
   
   // Indexed fields for efficient querying
   userId: string;
@@ -54,10 +73,10 @@ export interface JournalEntryDocument extends Omit<JournalEntry, 'id'> {
 /**
  * Journal template document structure in Firestore
  */
-export interface JournalTemplateDocument extends Omit<JournalTemplate, 'id'> {
+export interface JournalTemplateDocument extends Omit<JournalTemplate, 'id' | 'createdAt' | 'updatedAt' | 'category'> {
   // Firestore-specific fields
-  createdAt: FirebaseFirestore.Timestamp;
-  updatedAt: FirebaseFirestore.Timestamp;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
   
   // Indexed fields
   userId: string;
@@ -71,14 +90,14 @@ export interface JournalTemplateDocument extends Omit<JournalTemplate, 'id'> {
  * Journal preferences document structure in Firestore
  */
 export interface JournalPreferencesDocument extends Omit<JournalPreferences, 'updatedAt'> {
-  updatedAt: FirebaseFirestore.Timestamp;
+  updatedAt: Timestamp;
 }
 
 /**
  * Journal statistics document structure in Firestore
  */
 export interface JournalStatsDocument extends Omit<JournalCompletionStats, 'lastUpdated'> {
-  lastUpdated: FirebaseFirestore.Timestamp;
+  lastUpdated: Timestamp;
 }
 
 // ===== FIRESTORE INDEXES =====
@@ -250,8 +269,8 @@ export function journalEntryToFirestore(entry: JournalEntry): JournalEntryDocume
   
   return {
     ...entryData,
-    createdAt: FirebaseFirestore.Timestamp.fromDate(new Date(createdAt)),
-    updatedAt: FirebaseFirestore.Timestamp.fromDate(new Date(updatedAt)),
+    createdAt: Timestamp.fromDate(new Date(createdAt)),
+    updatedAt: Timestamp.fromDate(new Date(updatedAt)),
     searchableContent,
     searchableTags
   };
@@ -278,12 +297,13 @@ export function firestoreToJournalEntry(
  * Converts JournalTemplate to Firestore document
  */
 export function journalTemplateToFirestore(template: JournalTemplate): JournalTemplateDocument {
-  const { id, createdAt, updatedAt, ...templateData } = template;
+  const { id, createdAt, updatedAt, category, ...templateData } = template;
   
   return {
     ...templateData,
-    createdAt: FirebaseFirestore.Timestamp.fromDate(new Date(createdAt)),
-    updatedAt: FirebaseFirestore.Timestamp.fromDate(new Date(updatedAt))
+    createdAt: Timestamp.fromDate(new Date(createdAt)),
+    updatedAt: Timestamp.fromDate(new Date(updatedAt)),
+    category: category as string
   };
 }
 
@@ -294,11 +314,12 @@ export function firestoreToJournalTemplate(
   id: string, 
   doc: JournalTemplateDocument
 ): JournalTemplate {
-  const { createdAt, updatedAt, ...templateData } = doc;
+  const { createdAt, updatedAt, category, ...templateData } = doc;
   
   return {
     id,
     ...templateData,
+    category: category as any, // Cast back to TemplateCategory enum
     createdAt: createdAt.toDate().toISOString(),
     updatedAt: updatedAt.toDate().toISOString()
   };
@@ -312,7 +333,7 @@ export function journalPreferencesToFirestore(preferences: JournalPreferences): 
   
   return {
     ...preferencesData,
-    updatedAt: FirebaseFirestore.Timestamp.fromDate(new Date(updatedAt))
+    updatedAt: Timestamp.fromDate(new Date(updatedAt))
   };
 }
 
@@ -344,19 +365,19 @@ export const BATCH_WRITE_CONFIG = {
  * Creates batch write operations for multiple journal entries
  */
 export function createJournalEntryBatch(
-  firestore: FirebaseFirestore.Firestore,
+  firestore: Firestore,
   userId: string,
   entries: JournalEntry[]
-): FirebaseFirestore.WriteBatch[] {
-  const batches: FirebaseFirestore.WriteBatch[] = [];
-  const collectionRef = firestore.collection(JOURNAL_COLLECTIONS.JOURNAL_ENTRIES(userId));
+): WriteBatch[] {
+  const batches: WriteBatch[] = [];
+  const collectionRef = collection(firestore, JOURNAL_COLLECTIONS.JOURNAL_ENTRIES(userId));
   
   for (let i = 0; i < entries.length; i += BATCH_WRITE_CONFIG.MAX_BATCH_SIZE) {
-    const batch = firestore.batch();
+    const batch = writeBatch(firestore);
     const batchEntries = entries.slice(i, i + BATCH_WRITE_CONFIG.MAX_BATCH_SIZE);
     
     batchEntries.forEach(entry => {
-      const docRef = entry.id ? collectionRef.doc(entry.id) : collectionRef.doc();
+      const docRef = entry.id ? doc(collectionRef, entry.id) : doc(collectionRef);
       const firestoreDoc = journalEntryToFirestore(entry);
       batch.set(docRef, firestoreDoc);
     });
@@ -373,45 +394,45 @@ export function createJournalEntryBatch(
  * Query builder for journal entries
  */
 export class JournalEntryQueryBuilder {
-  private query: FirebaseFirestore.Query;
+  private query: Query;
   
   constructor(
-    firestore: FirebaseFirestore.Firestore,
+    firestore: Firestore,
     userId: string
   ) {
-    this.query = firestore
-      .collection(JOURNAL_COLLECTIONS.JOURNAL_ENTRIES(userId))
-      .where('userId', '==', userId);
+    // Use original user-specific collection path that was working
+    const collectionRef = collection(firestore, JOURNAL_COLLECTIONS.JOURNAL_ENTRIES(userId));
+    // No userId filter needed since collection is already user-specific
+    this.query = query(collectionRef);
   }
   
   dateRange(startDate: string, endDate: string): this {
-    this.query = this.query
-      .where('date', '>=', startDate)
-      .where('date', '<=', endDate);
+    this.query = query(this.query, where('date', '>=', startDate), where('date', '<=', endDate));
     return this;
   }
   
   completionStatus(isComplete: boolean): this {
-    this.query = this.query.where('isComplete', '==', isComplete);
+    this.query = query(this.query, where('isComplete', '==', isComplete));
     return this;
   }
   
   templateId(templateId: string): this {
-    this.query = this.query.where('templateId', '==', templateId);
+    this.query = query(this.query, where('templateId', '==', templateId));
     return this;
   }
   
   orderByDate(direction: 'asc' | 'desc' = 'desc'): this {
-    this.query = this.query.orderBy('date', direction);
+    // Skip orderBy when we have range queries to avoid composite index requirement
+    // We'll sort client-side instead
     return this;
   }
   
   limit(count: number): this {
-    this.query = this.query.limit(count);
+    this.query = query(this.query, limit(count));
     return this;
   }
   
-  build(): FirebaseFirestore.Query {
+  build(): Query {
     return this.query;
   }
 }
@@ -420,43 +441,42 @@ export class JournalEntryQueryBuilder {
  * Query builder for journal templates
  */
 export class JournalTemplateQueryBuilder {
-  private query: FirebaseFirestore.Query;
+  private query: Query;
   
   constructor(
-    firestore: FirebaseFirestore.Firestore,
+    firestore: Firestore,
     userId: string
   ) {
-    this.query = firestore
-      .collection(JOURNAL_COLLECTIONS.JOURNAL_TEMPLATES(userId))
-      .where('userId', '==', userId);
+    const collectionRef = collection(firestore, JOURNAL_COLLECTIONS.JOURNAL_TEMPLATES(userId));
+    this.query = query(collectionRef, where('userId', '==', userId));
   }
   
   category(category: string): this {
-    this.query = this.query.where('category', '==', category);
+    this.query = query(this.query, where('category', '==', category));
     return this;
   }
   
   isDefault(isDefault: boolean): this {
-    this.query = this.query.where('isDefault', '==', isDefault);
+    this.query = query(this.query, where('isDefault', '==', isDefault));
     return this;
   }
   
   isPublic(isPublic: boolean): this {
-    this.query = this.query.where('isPublic', '==', isPublic);
+    this.query = query(this.query, where('isPublic', '==', isPublic));
     return this;
   }
   
   orderByUsage(): this {
-    this.query = this.query.orderBy('usageCount', 'desc');
+    this.query = query(this.query, orderBy('usageCount', 'desc'));
     return this;
   }
   
   orderByCreated(direction: 'asc' | 'desc' = 'desc'): this {
-    this.query = this.query.orderBy('createdAt', direction);
+    this.query = query(this.query, orderBy('createdAt', direction));
     return this;
   }
   
-  build(): FirebaseFirestore.Query {
+  build(): Query {
     return this.query;
   }
 }
@@ -469,8 +489,8 @@ export class JournalTemplateQueryBuilder {
 export interface JournalMigrationScript {
   version: string;
   description: string;
-  up: (firestore: FirebaseFirestore.Firestore, userId: string) => Promise<void>;
-  down: (firestore: FirebaseFirestore.Firestore, userId: string) => Promise<void>;
+  up: (firestore: Firestore, userId: string) => Promise<void>;
+  down: (firestore: Firestore, userId: string) => Promise<void>;
 }
 
 /**
@@ -482,11 +502,12 @@ export const JOURNAL_MIGRATIONS: JournalMigrationScript[] = [
     description: 'Initial journal schema setup',
     up: async (firestore, userId) => {
       // Create default preferences document
-      const preferencesRef = firestore
-        .collection(JOURNAL_COLLECTIONS.JOURNAL_PREFERENCES(userId))
-        .doc('preferences');
+      const preferencesRef = doc(
+        collection(firestore, `users/${userId}/journalSettings`),
+        'preferences'
+      );
         
-      await preferencesRef.set({
+      await setDoc(preferencesRef, {
         defaultTemplateId: null,
         autoSaveInterval: 30,
         reminderEnabled: false,
@@ -501,16 +522,17 @@ export const JOURNAL_MIGRATIONS: JournalMigrationScript[] = [
         defaultExportFormat: 'pdf',
         includeImages: true,
         includeEmotionalData: false,
-        updatedAt: FirebaseFirestore.Timestamp.now()
+        updatedAt: Timestamp.now()
       });
     },
     down: async (firestore, userId) => {
       // Remove preferences document
-      const preferencesRef = firestore
-        .collection(JOURNAL_COLLECTIONS.JOURNAL_PREFERENCES(userId))
-        .doc('preferences');
+      const preferencesRef = doc(
+        collection(firestore, `users/${userId}/journalSettings`),
+        'preferences'
+      );
         
-      await preferencesRef.delete();
+      await deleteDoc(preferencesRef);
     }
   }
 ];
