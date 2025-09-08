@@ -96,7 +96,7 @@ const Index: React.FC = () => {
       case 'trades':
         return <TradeLog />;
       case 'journal':
-        return <DailyJournal />;
+        return <DailyJournal selectedDate={(location.state as any)?.selectedDate} />;
       case 'reports':
         return <Reports />;
       case 'playbooks':

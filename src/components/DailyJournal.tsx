@@ -4,6 +4,7 @@ import { useTradeContext } from '../contexts/TradeContext';
 import { Trade } from '../lib/firebaseService';
 import { Calendar, ChevronDown, ChevronRight, ChevronLeft, FileText } from 'lucide-react';
 import DailyJournalView from './DailyJournalView';
+import JournalIntegration from './journal/JournalIntegration';
 
 interface JournalEntry {
   date: string;
@@ -206,19 +207,16 @@ const DailyJournal: React.FC<DailyJournalProps> = ({ selectedDate }) => {
     year: 'numeric' 
   });
 
-  // If journal view is open, show it instead of the regular view
-  if (showJournalView && selectedDay) {
-    const [year, month, day] = selectedDay.split('-').map(Number);
-    const selectedDateObj = new Date(year, month - 1, day);
-    return (
-      <DailyJournalView 
-        selectedDate={selectedDateObj} 
-        onClose={handleCloseJournalView} 
-      />
-    );
-  }
-
+  // Use the new integrated journal system
   return (
+    <JournalIntegration 
+      selectedDate={selectedDate}
+      initialView="calendar"
+    />
+  );
+
+  // Legacy view (kept for reference but not used)
+  const legacyView = (
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">

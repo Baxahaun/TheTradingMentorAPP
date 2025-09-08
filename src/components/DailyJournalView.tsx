@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { format } from 'date-fns';
+import React, { useState, useEffect, useCallback } from 'react';
+import { format, addDays, subDays } from 'date-fns';
 import { useTradeContext } from '../contexts/TradeContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Trade } from '../lib/firebaseService';
 import { 
   ChevronLeft,
@@ -13,66 +14,79 @@ import {
   Target,
   Brain,
   Calendar,
-  Clock
+  Clock,
+  Save,
+  Settings,
+  Layout,
+  Plus,
+  CheckCircle,
+  Circle,
+  Loader2
 } from 'lucide-react';
 import TradeReviewModal from './TradeReviewModal';
+import TemplateSelector from './journal/TemplateSelector';
+import SectionEditor from './journal/SectionEditor';
+import EmotionalTracker from './journal/EmotionalTracker';
+import PerformanceMetrics from './journal/PerformanceMetrics';
+import QuickAddButton from './journal/QuickAddButton';
+import TradeReferencePanel from './journal/TradeReferencePanel';
+import { journalDataService } from '../services/JournalDataService';
+import { templateService } from '../services/TemplateService';
+import { 
+  JournalEntry, 
+  JournalTemplate, 
+  JournalSection,
+  TemplateSection,
+  EmotionalState,
+  ProcessMetrics
+} from '../types/journal';
+
+// Get template section for a journal section
+const getTemplateSectionForJournalSection = (
+  journalSection: JournalSection, 
+  templates: JournalTemplate[],
+  entry: JournalEntry | null
+): TemplateSection | undefined => {
+  if (!entry?.templateId) return undefined;
+  
+  const template = templates.find(t => t.id === entry.templateId);
+  if (!template) return undefined;
+  
+  return template.sections.find(ts => ts.id === journalSection.templateSectionId);
+};
 
 interface DailyJournalViewProps {
   selectedDate: Date;
   onClose: () => void;
+  onDateChange?: (date: Date) => void;
 }
 
-interface PreSessionData {
-  marketBias: 'bullish' | 'bearish' | 'neutral' | '';
-  keyLevels: string;
-  newsEvents: NewsEvent[];
-  tradingPlan: string;
-  riskLimit: string;
-  goals: string;
+interface AutoSaveStatus {
+  isSaving: boolean;
+  lastSaved: Date | null;
+  hasUnsavedChanges: boolean;
 }
 
-interface NewsEvent {
-  time: string;
-  event: string;
-  impact: 'low' | 'medium' | 'high';
-}
-
-interface PostSessionData {
-  sessionReview: string;
-  lessonsLearned: string;
-  mistakesToAvoid: string;
-  tomorrowsPrep: string;
-  emotionalState: string;
-  improvements: string;
-}
-
-export default function DailyJournalView({ selectedDate, onClose }: DailyJournalViewProps) {
+export default function DailyJournalView({ selectedDate, onClose, onDateChange }: DailyJournalViewProps) {
   const { trades } = useTradeContext();
+  const { user } = useAuth();
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
   
-  // Pre-session state
-  const [preSession, setPreSession] = useState<PreSessionData>({
-    marketBias: '',
-    keyLevels: '',
-    newsEvents: [],
-    tradingPlan: '',
-    riskLimit: '',
-    goals: ''
+  // Journal state
+  const [journalEntry, setJournalEntry] = useState<JournalEntry | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Template selection state
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  const [availableTemplates, setAvailableTemplates] = useState<JournalTemplate[]>([]);
+  
+  // Auto-save state
+  const [autoSaveStatus, setAutoSaveStatus] = useState<AutoSaveStatus>({
+    isSaving: false,
+    lastSaved: null,
+    hasUnsavedChanges: false
   });
-
-  // Post-session state
-  const [postSession, setPostSession] = useState<PostSessionData>({
-    sessionReview: '',
-    lessonsLearned: '',
-    mistakesToAvoid: '',
-    tomorrowsPrep: '',
-    emotionalState: '',
-    improvements: ''
-  });
-
-  // News event input state
-  const [newEvent, setNewEvent] = useState({ time: '', event: '', impact: 'low' as const });
 
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
   const dayTrades = trades.filter(trade => trade.date === dateKey);
@@ -88,63 +102,216 @@ export default function DailyJournalView({ selectedDate, onClose }: DailyJournal
       : '0'
   };
 
-  // Load existing journal data
+  // Load journal entry and templates
   useEffect(() => {
-    const loadJournalData = () => {
-      const savedData = localStorage.getItem(`journal_${dateKey}`);
-      if (savedData) {
-        const data = JSON.parse(savedData);
-        setPreSession(prevState => data.preSession || prevState);
-        setPostSession(prevState => data.postSession || prevState);
+    if (!user) return;
+    
+    const loadJournalData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Load existing journal entry or create new one
+        let entry = await journalDataService.getJournalEntry(user.uid, dateKey);
+        
+        if (!entry) {
+          // Create new entry if none exists
+          entry = await journalDataService.createJournalEntry(user.uid, dateKey);
+        }
+
+        setJournalEntry(entry);
+
+        // Load available templates
+        const [userTemplates, defaultTemplates] = await Promise.all([
+          templateService.getUserTemplates(user.uid),
+          templateService.getDefaultTemplates()
+        ]);
+        
+        setAvailableTemplates([...defaultTemplates, ...userTemplates]);
+      } catch (err) {
+        console.error('Error loading journal data:', err);
+        setError('Failed to load journal data');
+      } finally {
+        setLoading(false);
       }
     };
-    loadJournalData();
-  }, [dateKey]);
 
-  // Save journal data
-  const saveJournalData = async () => {
-    setIsSaving(true);
+    loadJournalData();
+  }, [user, dateKey]);
+
+  // Auto-save functionality
+  const saveJournalEntry = useCallback(async (entryToSave?: JournalEntry) => {
+    if (!user || !journalEntry) return;
+
+    const entry = entryToSave || journalEntry;
+    
     try {
-      const data = {
-        preSession,
-        postSession,
-        sessionMetrics,
+      setAutoSaveStatus(prev => ({ ...prev, isSaving: true }));
+      
+      await journalDataService.updateJournalEntry(user.uid, entry.id, {
+        sections: entry.sections,
+        emotionalState: entry.emotionalState,
+        processMetrics: entry.processMetrics,
+        tags: entry.tags,
+        isComplete: entry.isComplete,
+        tradeReferences: entry.tradeReferences,
+        dailyPnL: sessionMetrics.totalPnL,
+        tradeCount: sessionMetrics.totalTrades
+      });
+
+      setAutoSaveStatus({
+        isSaving: false,
+        lastSaved: new Date(),
+        hasUnsavedChanges: false
+      });
+    } catch (error) {
+      console.error('Error saving journal entry:', error);
+      setAutoSaveStatus(prev => ({ ...prev, isSaving: false }));
+      setError('Failed to save journal entry');
+    }
+  }, [user, journalEntry, sessionMetrics]);
+
+  // Auto-save timer
+  useEffect(() => {
+    if (!autoSaveStatus.hasUnsavedChanges || autoSaveStatus.isSaving) return;
+
+    const timer = setTimeout(() => {
+      saveJournalEntry();
+    }, 30000); // Auto-save after 30 seconds of inactivity
+
+    return () => clearTimeout(timer);
+  }, [autoSaveStatus.hasUnsavedChanges, autoSaveStatus.isSaving, saveJournalEntry]);
+
+  // Template selection handlers
+  const handleTemplateSelect = async (template: JournalTemplate) => {
+    if (!user || !journalEntry) return;
+
+    try {
+      const templateSections = await templateService.applyTemplateToEntry(template.id);
+      
+      const updatedEntry: JournalEntry = {
+        ...journalEntry,
+        templateId: template.id,
+        templateName: template.name,
+        sections: templateSections,
         updatedAt: new Date().toISOString()
       };
-      localStorage.setItem(`journal_${dateKey}`, JSON.stringify(data));
-      // Show success toast or feedback
-      console.log('Journal saved successfully');
+
+      setJournalEntry(updatedEntry);
+      setShowTemplateSelector(false);
+      setAutoSaveStatus(prev => ({ ...prev, hasUnsavedChanges: true }));
     } catch (error) {
-      console.error('Error saving journal:', error);
-    } finally {
-      setIsSaving(false);
+      console.error('Error applying template:', error);
+      setError('Failed to apply template');
     }
   };
 
-  // Add news event
-  const addNewsEvent = () => {
-    if (newEvent.time && newEvent.event) {
-      setPreSession({
-        ...preSession,
-        newsEvents: [...preSession.newsEvents, newEvent]
-      });
-      setNewEvent({ time: '', event: '', impact: 'low' });
+  // Section update handlers
+  const updateSection = (sectionId: string, content: any) => {
+    if (!journalEntry) return;
+
+    const updatedSections = journalEntry.sections.map(section => 
+      section.id === sectionId 
+        ? { 
+            ...section, 
+            content, 
+            updatedAt: new Date().toISOString(),
+            isCompleted: Boolean(content && (
+              typeof content === 'string' ? content.trim().length > 0 : 
+              Array.isArray(content) ? content.length > 0 : 
+              Object.keys(content).length > 0
+            ))
+          }
+        : section
+    );
+
+    const updatedEntry: JournalEntry = {
+      ...journalEntry,
+      sections: updatedSections,
+      updatedAt: new Date().toISOString()
+    };
+
+    setJournalEntry(updatedEntry);
+    setAutoSaveStatus(prev => ({ ...prev, hasUnsavedChanges: true }));
+  };
+
+  // Navigation handlers
+  const navigateToDate = (newDate: Date) => {
+    if (onDateChange) {
+      onDateChange(newDate);
     }
   };
 
-  // Remove news event
-  const removeNewsEvent = (index: number) => {
-    setPreSession({
-      ...preSession,
-      newsEvents: preSession.newsEvents.filter((_, i) => i !== index)
-    });
+  const goToPreviousDay = () => {
+    navigateToDate(subDays(selectedDate, 1));
   };
 
-  const impactColors = {
-    high: 'bg-red-500',
-    medium: 'bg-yellow-500',
-    low: 'bg-green-500'
+  const goToNextDay = () => {
+    navigateToDate(addDays(selectedDate, 1));
   };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+          <span className="text-gray-600 dark:text-gray-300">Loading journal...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md max-w-md">
+          <div className="flex items-center gap-3 text-red-600 mb-4">
+            <AlertCircle className="w-6 h-6" />
+            <h2 className="text-lg font-semibold">Error Loading Journal</h2>
+          </div>
+          <p className="text-gray-600 dark:text-gray-300 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show template selector if no template is selected and entry is empty
+  if (showTemplateSelector) {
+    return (
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+        <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setShowTemplateSelector(false)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
+                Select Template
+              </h1>
+            </div>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <TemplateSelector
+            userId={user!.uid}
+            onTemplateSelect={handleTemplateSelect}
+            onCancel={() => setShowTemplateSelector(false)}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -160,23 +327,74 @@ export default function DailyJournalView({ selectedDate, onClose }: DailyJournal
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
-                Journal
+                Daily Journal
               </h1>
+              {journalEntry?.templateName && (
+                <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 text-sm rounded-full">
+                  {journalEntry.templateName}
+                </span>
+              )}
             </div>
+            
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-                <Calendar className="w-5 h-5" />
-                <span className="font-semibold">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</span>
+              {/* Date Navigation */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={goToPreviousDay}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300 px-3">
+                  <Calendar className="w-5 h-5" />
+                  <span className="font-semibold">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</span>
+                </div>
+                <button
+                  onClick={goToNextDay}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
-              <button
-                onClick={saveJournalData}
-                disabled={isSaving}
-                className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold py-2 px-5 rounded-lg transition-colors flex items-center gap-2"
-              >
-                {isSaving ? 'Saving...' : 'Close Day'}
-                <ChevronRight className="w-4 h-4" />
-                <ChevronRight className="w-4 h-4 -ml-3" />
-              </button>
+
+              {/* Auto-save Status */}
+              <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                {autoSaveStatus.isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : autoSaveStatus.lastSaved ? (
+                  <>
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span>Saved {format(autoSaveStatus.lastSaved, 'HH:mm')}</span>
+                  </>
+                ) : autoSaveStatus.hasUnsavedChanges ? (
+                  <>
+                    <Circle className="w-4 h-4 text-yellow-500" />
+                    <span>Unsaved changes</span>
+                  </>
+                ) : null}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowTemplateSelector(true)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  title="Change Template"
+                >
+                  <Layout className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => saveJournalEntry()}
+                  disabled={autoSaveStatus.isSaving}
+                  className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  Save
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -186,201 +404,210 @@ export default function DailyJournalView({ selectedDate, onClose }: DailyJournal
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-8">
           
-          {/* Pre-Session Plan */}
-          <section className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
-            <h2 className="text-2xl font-semibold text-gray-700 dark:text-white mb-4 flex items-center">
-              <Clock className="w-6 h-6 mr-3 text-indigo-500" />
-              Pre-Session Plan
-            </h2>
-            
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Market Outlook */}
-              <div>
-                <h3 className="font-semibold text-gray-600 dark:text-gray-300 mb-2">
-                  Market Outlook & Gameplan
-                </h3>
-                <textarea
-                  value={preSession.tradingPlan}
-                  onChange={(e) => setPreSession({ ...preSession, tradingPlan: e.target.value })}
-                  className="w-full h-40 p-3 bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
-                  placeholder="What are the current market conditions? What pairs are in focus? What is my hypothesis for the session?"
-                />
-              </div>
+          {/* Quick Add Button */}
+          <QuickAddButton 
+            onQuickAdd={(content) => {
+              // Add quick note to the first text section or create one
+              if (journalEntry && journalEntry.sections.length > 0) {
+                const textSection = journalEntry.sections.find(s => s.type === 'text');
+                if (textSection) {
+                  const existingContent = textSection.content || '';
+                  const newContent = existingContent + (existingContent ? '\n\n' : '') + content;
+                  updateSection(textSection.id, newContent);
+                }
+              }
+            }}
+          />
 
-              {/* Key News Events */}
-              <div>
-                <h3 className="font-semibold text-gray-600 dark:text-gray-300 mb-2">
-                  Key News Events
-                </h3>
-                <div className="space-y-3">
-                  {/* Existing events */}
-                  {preSession.newsEvents.map((event, index) => (
-                    <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                      <span className={`w-3 h-3 rounded-full ${impactColors[event.impact]}`}></span>
-                      <span className="font-mono text-sm text-gray-500 dark:text-gray-400">{event.time}</span>
-                      <p className="flex-1 text-gray-700 dark:text-gray-300">{event.event}</p>
-                      <button
-                        onClick={() => removeNewsEvent(index)}
-                        className="text-gray-400 hover:text-red-500 transition-colors text-xl"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
+          {/* Trade Reference Panel */}
+          {dayTrades.length > 0 && (
+            <TradeReferencePanel 
+              trades={dayTrades}
+              onTradeSelect={(trade) => {
+                // Add trade reference to journal
+                if (journalEntry) {
+                  const updatedReferences = [...journalEntry.tradeReferences, {
+                    tradeId: trade.id,
+                    insertedAt: new Date().toISOString(),
+                    context: `Referenced from ${trade.symbol} trade`,
+                    displayType: 'card' as const
+                  }];
                   
-                  {/* Add new event form */}
-                  <div className="flex gap-2">
-                    <input
-                      type="time"
-                      value={newEvent.time}
-                      onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
-                      className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                    />
-                    <input
-                      type="text"
-                      value={newEvent.event}
-                      onChange={(e) => setNewEvent({ ...newEvent, event: e.target.value })}
-                      placeholder="Event name"
-                      className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                    />
-                    <select
-                      value={newEvent.impact}
-                      onChange={(e) => setNewEvent({ ...newEvent, impact: e.target.value as NewsEvent['impact'] })}
-                      className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                    >
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                    </select>
-                  </div>
-                  <button
-                    onClick={addNewsEvent}
-                    className="text-indigo-600 dark:text-indigo-400 hover:underline text-sm font-semibold"
-                  >
-                    + Add Event
-                  </button>
-                </div>
+                  const updatedEntry = {
+                    ...journalEntry,
+                    tradeReferences: updatedReferences
+                  };
+                  
+                  setJournalEntry(updatedEntry);
+                  setAutoSaveStatus(prev => ({ ...prev, hasUnsavedChanges: true }));
+                }
+              }}
+            />
+          )}
+
+          {/* Emotional Tracker */}
+          <EmotionalTracker 
+            emotionalState={journalEntry?.emotionalState}
+            onEmotionalStateChange={(newState) => {
+              if (journalEntry) {
+                const updatedEntry = {
+                  ...journalEntry,
+                  emotionalState: newState
+                };
+                setJournalEntry(updatedEntry);
+                setAutoSaveStatus(prev => ({ ...prev, hasUnsavedChanges: true }));
+              }
+            }}
+          />
+
+          {/* Performance Metrics */}
+          <PerformanceMetrics 
+            processMetrics={journalEntry?.processMetrics}
+            dailyPnL={sessionMetrics.totalPnL}
+            trades={dayTrades}
+            onProcessMetricsChange={(newMetrics) => {
+              if (journalEntry) {
+                const updatedEntry = {
+                  ...journalEntry,
+                  processMetrics: newMetrics
+                };
+                setJournalEntry(updatedEntry);
+                setAutoSaveStatus(prev => ({ ...prev, hasUnsavedChanges: true }));
+              }
+            }}
+          />
+
+          {/* Journal Sections */}
+          {journalEntry && journalEntry.sections.length > 0 ? (
+            journalEntry.sections
+              .sort((a, b) => a.order - b.order)
+              .map((section) => (
+                <SectionEditor
+                  key={section.id}
+                  section={section}
+                  templateSection={getTemplateSectionForJournalSection(section, availableTemplates, journalEntry)}
+                  trades={dayTrades}
+                  onUpdate={(content) => updateSection(section.id, content)}
+                  onSave={saveJournalEntry}
+                  autoSaveInterval={30000}
+                />
+              ))
+          ) : (
+            /* Empty State */
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-md text-center">
+              <div className="mb-4">
+                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-700 dark:text-white mb-2">
+                  Start Your Daily Journal
+                </h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-6">
+                  Choose a template to structure your journal entry, or start with a blank entry.
+                </p>
+              </div>
+              <div className="flex justify-center gap-4">
+                <button
+                  onClick={() => setShowTemplateSelector(true)}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2"
+                >
+                  <Layout className="w-5 h-5" />
+                  Choose Template
+                </button>
+                <button
+                  onClick={() => handleTemplateSelect({ 
+                    id: 'blank', 
+                    name: 'Blank Entry', 
+                    sections: [{
+                      id: 'notes',
+                      type: 'text' as const,
+                      title: 'Daily Notes',
+                      prompt: 'Write your thoughts about today\'s trading session',
+                      isRequired: false,
+                      order: 1,
+                      config: {}
+                    }]
+                  } as JournalTemplate)}
+                  className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  Start Blank
+                </button>
               </div>
             </div>
-          </section>
+          )}
 
-          {/* Trades Executed */}
+          {/* Daily Performance Summary */}
           <section className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
-            <h2 className="text-2xl font-semibold text-gray-700 dark:text-white mb-4 flex items-center">
-              <TrendingUp className="w-6 h-6 mr-3 text-indigo-500" />
-              Trades Executed
+            <h2 className="text-xl font-semibold text-gray-700 dark:text-white mb-4 flex items-center">
+              <BarChart3 className="w-5 h-5 mr-3 text-indigo-500" />
+              Daily Performance Summary
             </h2>
             
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
-                <thead className="text-xs text-gray-700 dark:text-gray-400 uppercase bg-gray-50 dark:bg-gray-700">
-                  <tr>
-                    <th className="py-3 px-4">Symbol</th>
-                    <th className="py-3 px-4">Type</th>
-                    <th className="py-3 px-4">Quantity</th>
-                    <th className="py-3 px-4">P&L</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4">Notes</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {dayTrades.length > 0 ? (
-                    dayTrades.map((trade) => (
-                      <tr key={trade.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                        <td className="py-3 px-4 font-semibold">{trade.symbol}</td>
-                        <td className={`py-3 px-4 font-semibold ${
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Net P&L</p>
+                <p className={`text-xl font-bold ${
+                  sessionMetrics.totalPnL >= 0 ? 'text-green-500' : 'text-red-500'
+                }`}>
+                  {sessionMetrics.totalPnL >= 0 ? '+' : ''}${sessionMetrics.totalPnL.toFixed(2)}
+                </p>
+              </div>
+              
+              <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Win Rate</p>
+                <p className="text-xl font-bold text-gray-800 dark:text-white">
+                  {sessionMetrics.winRate}%
+                </p>
+              </div>
+              
+              <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Total Trades</p>
+                <p className="text-xl font-bold text-gray-800 dark:text-white">
+                  {sessionMetrics.totalTrades}
+                </p>
+              </div>
+
+              <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Completion</p>
+                <p className="text-xl font-bold text-indigo-600">
+                  {journalEntry ? Math.round(journalEntry.completionPercentage) : 0}%
+                </p>
+              </div>
+            </div>
+
+            {/* Trades List */}
+            {dayTrades.length > 0 && (
+              <div className="overflow-x-auto">
+                <h3 className="font-semibold text-gray-600 dark:text-gray-300 mb-3">Today's Trades</h3>
+                <div className="grid gap-2">
+                  {dayTrades.map((trade) => (
+                    <div key={trade.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold text-gray-800 dark:text-white">{trade.symbol}</span>
+                        <span className={`text-sm font-medium ${
                           trade.direction === 'LONG' ? 'text-blue-500' : 'text-purple-500'
                         }`}>
-                          {trade.direction === 'LONG' ? 'Buy' : 'Sell'}
-                        </td>
-                        <td className="py-3 px-4">{trade.quantity}</td>
-                        <td className={`py-3 px-4 font-mono ${
+                          {trade.direction}
+                        </span>
+                        <span className="text-sm text-gray-500">{trade.quantity}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className={`font-mono font-semibold ${
                           (trade.pnl || 0) >= 0 ? 'text-green-500' : 'text-red-500'
                         }`}>
                           {(trade.pnl || 0) >= 0 ? '+' : ''}${(trade.pnl || 0).toFixed(2)}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                            trade.status === 'open' 
-                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
-                              : 'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200'
-                          }`}>
-                            {trade.status === 'open' ? 'Open' : 'Closed'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <button
-                            onClick={() => setSelectedTrade(trade)}
-                            className="text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400"
-                          >
-                            <FileText className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={6} className="py-8 text-center text-gray-400">
-                        No trades recorded for this session
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          {/* Post-Session Review */}
-          <section className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
-            <h2 className="text-2xl font-semibold text-gray-700 dark:text-white mb-4 flex items-center">
-              <FileText className="w-6 h-6 mr-3 text-indigo-500" />
-              Post-Session Review
-            </h2>
-            
-            <div className="grid md:grid-cols-3 gap-6">
-              {/* Session Reflection */}
-              <div className="md:col-span-2">
-                <h3 className="font-semibold text-gray-600 dark:text-gray-300 mb-2">
-                  Session Reflection & Notes
-                </h3>
-                <textarea
-                  value={postSession.sessionReview}
-                  onChange={(e) => setPostSession({ ...postSession, sessionReview: e.target.value })}
-                  className="w-full h-48 p-3 bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
-                  placeholder="How did the session go? Did I follow my plan? What did I learn? What can be improved for tomorrow?"
-                />
-              </div>
-
-              {/* Performance Metrics */}
-              <div className="space-y-4">
-                <h3 className="font-semibold text-gray-600 dark:text-gray-300 mb-2">
-                  Performance Metrics
-                </h3>
-                
-                <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Net P&L</p>
-                  <p className={`text-2xl font-bold ${
-                    sessionMetrics.totalPnL >= 0 ? 'text-green-500' : 'text-red-500'
-                  }`}>
-                    {sessionMetrics.totalPnL >= 0 ? '+' : ''}${sessionMetrics.totalPnL.toFixed(2)}
-                  </p>
-                </div>
-                
-                <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Win Rate</p>
-                  <p className="text-2xl font-bold text-gray-800 dark:text-white">
-                    {sessionMetrics.winRate}%
-                  </p>
-                </div>
-                
-                <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Trades Taken</p>
-                  <p className="text-2xl font-bold text-gray-800 dark:text-white">
-                    {sessionMetrics.totalTrades}
-                  </p>
+                        </span>
+                        <button
+                          onClick={() => setSelectedTrade(trade)}
+                          className="p-1 text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400"
+                        >
+                          <FileText className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
+            )}
           </section>
 
         </div>

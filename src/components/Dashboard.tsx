@@ -37,6 +37,10 @@ const Dashboard: React.FC<DashboardProps> = () => {
     setIsDayModalOpen(true);
   };
 
+  const handleNavigateToJournal = (date: string) => {
+    navigate('/', { state: { page: 'journal', selectedDate: date } });
+  };
+
   const handleCloseDayModal = () => {
     setIsDayModalOpen(false);
     setSelectedDate('');
@@ -495,9 +499,19 @@ const Dashboard: React.FC<DashboardProps> = () => {
 
           {/* Calendar */}
           <div className="bg-white p-6 rounded-lg shadow">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Trading Calendar</h3>
+              <button
+                onClick={() => navigate('/', { state: { page: 'journal' } })}
+                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+              >
+                View Journal →
+              </button>
+            </div>
             <CalendarWidget 
               trades={trades} 
               onDateClick={handleDateClick}
+              onJournalClick={handleNavigateToJournal}
               size={{ w: 300, h: 200 }}
             />
           </div>

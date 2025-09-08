@@ -1,19 +1,28 @@
 "use client"
 
 import * as React from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, FileText, CheckCircle, Circle, Edit3 } from "lucide-react"
 import { Button } from "./ui/button"
+
 import { Trade } from '../types/trade'
 import { NavigationContext } from '../types/navigation'
+import { JournalCalendarData } from '../types/journal'
+import { journalDataService } from '../services/JournalDataService'
+import { useAuth } from '../contexts/AuthContext'
 
 interface CalendarWidgetProps {
   trades?: Trade[]
   onDateClick?: (date: string) => void
   onTradeClick?: (tradeId: string, navigationContext: NavigationContext) => void
+  onJournalClick?: (date: string) => void
 }
 
-export default function CalendarWidget({ trades = [], onDateClick, onTradeClick }: CalendarWidgetProps) {
+export default function CalendarWidget({ trades = [], onDateClick, onTradeClick, onJournalClick }: CalendarWidgetProps) {
+  const { user } = useAuth()
   const [currentDate, setCurrentDate] = React.useState(new Date())
+  const [journalData, setJournalData] = React.useState<JournalCalendarData[]>([])
+  const [journalStreak, setJournalStreak] = React.useState(0)
+  const [loading, setLoading] = React.useState(false)
 
   const today = new Date()
   const currentMonth = currentDate.getMonth()
@@ -23,6 +32,31 @@ export default function CalendarWidget({ trades = [], onDateClick, onTradeClick 
   const firstDayOfMonth = new Date(currentYear, currentMonth, 1)
   const startDate = new Date(firstDayOfMonth)
   startDate.setDate(startDate.getDate() - firstDayOfMonth.getDay())
+
+  // Load journal data for current month
+  React.useEffect(() => {
+    if (!user) return
+
+    const loadJournalData = async () => {
+      try {
+        setLoading(true)
+        const [calendarData, streak] = await Promise.all([
+          journalDataService.getJournalCalendarData(user.uid, currentYear, currentMonth + 1),
+          journalDataService.getJournalingStreak(user.uid)
+        ])
+        setJournalData(calendarData)
+        setJournalStreak(streak)
+      } catch (error) {
+        console.error('Error loading journal data:', error)
+        setJournalData([])
+        setJournalStreak(0)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadJournalData()
+  }, [user, currentYear, currentMonth])
 
   // Generate calendar days
   const calendarDays = React.useMemo(() => {
@@ -109,6 +143,27 @@ export default function CalendarWidget({ trades = [], onDateClick, onTradeClick 
     return dayData
   }
 
+  const getJournalData = (date: Date) => {
+    const dateString = date.toISOString().split('T')[0]
+    return journalData.find(j => j.date === dateString)
+  }
+
+  const getJournalIndicator = (journalEntry?: JournalCalendarData) => {
+    if (!journalEntry || !journalEntry.hasEntry) {
+      return { icon: Circle, color: 'text-gray-300', title: 'No journal entry' }
+    }
+    
+    if (journalEntry.isComplete) {
+      return { icon: CheckCircle, color: 'text-green-500', title: 'Journal complete' }
+    }
+    
+    if (journalEntry.completionPercentage > 0) {
+      return { icon: Edit3, color: 'text-yellow-500', title: `Journal ${journalEntry.completionPercentage}% complete` }
+    }
+    
+    return { icon: FileText, color: 'text-blue-500', title: 'Journal started' }
+  }
+
   const months = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
@@ -133,6 +188,17 @@ export default function CalendarWidget({ trades = [], onDateClick, onTradeClick 
           </div>
           
           <div className="flex items-center space-x-4">
+            {/* Journaling Streak */}
+            {journalStreak > 0 && (
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">Journal Streak</div>
+                <div className="text-sm font-bold text-indigo-600 flex items-center gap-1">
+                  <FileText className="h-3 w-3" />
+                  {journalStreak} days
+                </div>
+              </div>
+            )}
+            
             {/* Monthly Summary - Top Right */}
             <div className="text-center">
               <div className="text-xs text-muted-foreground">Monthly P&L</div>
@@ -164,6 +230,8 @@ export default function CalendarWidget({ trades = [], onDateClick, onTradeClick 
         <div className="grid grid-cols-7 gap-1 flex-1 mb-6">
           {calendarDays.map((date, index) => {
             const dayData = getDayData(date)
+            const journalEntry = getJournalData(date)
+            const journalIndicator = getJournalIndicator(journalEntry)
             const hasActivity = dayData.count > 0
             const isProfitDay = dayData.pnl > 0
             const isLossDay = dayData.pnl < 0
@@ -173,7 +241,15 @@ export default function CalendarWidget({ trades = [], onDateClick, onTradeClick 
                 key={index}
                 onClick={() => {
                   const dateString = date.toISOString().split('T')[0];
-                  if (dateString && onDateClick) {
+                  
+                  // Prioritize journal navigation if journal entry exists
+                  if (journalEntry?.hasEntry && onJournalClick) {
+                    onJournalClick(dateString);
+                    return;
+                  }
+                  
+                  // Default date click handler
+                  if (onDateClick) {
                     onDateClick(dateString);
                   }
                   
@@ -186,7 +262,7 @@ export default function CalendarWidget({ trades = [], onDateClick, onTradeClick 
                       return tradeDate.toDateString() === date.toDateString();
                     });
                     
-                    if (dayTrades.length === 1) {
+                    if (dayTrades.length === 1 && dayTrades[0]) {
                       const navigationContext: NavigationContext = {
                         source: 'calendar',
                         sourceParams: { 
@@ -201,22 +277,52 @@ export default function CalendarWidget({ trades = [], onDateClick, onTradeClick 
                   }
                 }}
                 className={`
-                  h-12 p-1 border rounded-md flex flex-col items-center justify-center text-sm
+                  h-16 p-1 border rounded-md flex flex-col items-center justify-between text-sm relative
                   ${isCurrentMonth(date) ? "bg-background" : "bg-muted/30 text-muted-foreground"}
                   ${isToday(date) ? "bg-primary text-primary-foreground font-semibold" : ""}
                   ${hasActivity && isProfitDay ? "bg-green-50 border-green-200" : ""}
                   ${hasActivity && isLossDay ? "bg-red-50 border-red-200" : ""}
+                  ${journalEntry?.hasEntry ? "ring-1 ring-indigo-200" : ""}
                   cursor-pointer hover:bg-accent transition-colors overflow-hidden
                   ${hasActivity && dayData.count === 1 ? "hover:ring-2 hover:ring-blue-200" : ""}
+                  ${journalEntry?.hasEntry ? "hover:ring-2 hover:ring-indigo-300" : ""}
                 `}
-                title={hasActivity && dayData.count === 1 ? "Click to view trade details" : undefined}
+                title={
+                  journalEntry?.hasEntry 
+                    ? `${journalIndicator.title} - Click to open journal`
+                    : hasActivity && dayData.count === 1 
+                      ? "Click to view trade details" 
+                      : undefined
+                }
               >
-                <span className={`text-xs ${isToday(date) ? "text-primary-foreground" : ""}`}>{date.getDate()}</span>
+                <div className="flex items-center justify-between w-full">
+                  <span className={`text-xs ${isToday(date) ? "text-primary-foreground" : ""}`}>
+                    {date.getDate()}
+                  </span>
+                  {/* Journal Indicator */}
+                  <journalIndicator.icon 
+                    className={`w-3 h-3 ${journalIndicator.color}`}
+                  />
+                </div>
+                
+                {/* Trade P&L */}
                 {hasActivity && (
                   <div className="text-xs leading-none">
                     <div className={`font-medium ${isProfitDay ? "text-green-600" : "text-red-600"}`}>
                       ${dayData.pnl.toFixed(0)}
                     </div>
+                  </div>
+                )}
+                
+                {/* Journal completion indicator */}
+                {journalEntry?.hasEntry && journalEntry.completionPercentage > 0 && (
+                  <div className="w-full bg-gray-200 rounded-full h-1 mt-1">
+                    <div 
+                      className={`h-1 rounded-full ${
+                        journalEntry.isComplete ? 'bg-green-500' : 'bg-yellow-500'
+                      }`}
+                      style={{ width: `${journalEntry.completionPercentage}%` }}
+                    />
                   </div>
                 )}
               </div>
@@ -233,6 +339,18 @@ export default function CalendarWidget({ trades = [], onDateClick, onTradeClick 
           <div className="flex items-center space-x-1">
             <div className="w-3 h-3 bg-red-100 border border-red-200 rounded"></div>
             <span className="text-muted-foreground">Loss Day</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <CheckCircle className="w-3 h-3 text-green-500" />
+            <span className="text-muted-foreground">Journal Complete</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <Edit3 className="w-3 h-3 text-yellow-500" />
+            <span className="text-muted-foreground">Journal In Progress</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <Circle className="w-3 h-3 text-gray-300" />
+            <span className="text-muted-foreground">No Journal</span>
           </div>
         </div>
     </div>

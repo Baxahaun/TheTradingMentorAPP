@@ -59,6 +59,16 @@ const DashboardV2 = () => {
     });
   };
 
+  const handleJournalClickFromCalendar = (date: string) => {
+    // Navigate to journal page with the selected date
+    navigate('/', { 
+      state: { 
+        page: 'journal',
+        selectedDate: date 
+      } 
+    });
+  };
+
   // Load user's saved layout
   useEffect(() => {
     const loadUserLayout = async () => {
@@ -200,6 +210,7 @@ const DashboardV2 = () => {
                       }}
                       onDateClick={handleDateClick}
                       onTradeClick={handleTradeClickFromCalendar}
+                      onJournalClick={handleJournalClickFromCalendar}
                     />
                   ) : (
                     <EmptyWidgetSlot

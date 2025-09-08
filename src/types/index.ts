@@ -8,6 +8,9 @@ export * from './tradeReview';
 export * from './navigation';
 export * from './widget';
 
-// Export new strategy management types
+// Export strategy management types
 export * from './strategy';
 export * from './strategyValidation';
+
+// Export journal system types
+export * from './journal';
