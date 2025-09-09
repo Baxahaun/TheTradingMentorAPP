@@ -763,17 +763,6 @@ export default function JournalEditor({
             </button>
           </div>
           
-          {onSave && (
-            <button
-              onClick={handleManualSave}
-              disabled={autoSaveStatus.isSaving}
-              className="flex items-center gap-2 px-3 py-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm rounded transition-colors ml-2"
-              title="Save (Ctrl+S)"
-            >
-              <Save className="w-4 h-4" />
-              Save
-            </button>
-          )}
         </div>
       )}
 

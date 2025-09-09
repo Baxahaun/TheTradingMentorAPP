@@ -4,7 +4,7 @@ import Sidebar from '../components/Sidebar';
 import DashboardV2 from '../components/Dashboard_v2';
 import AddTrade from '../components/AddTrade';
 import TradeLog from '../components/TradeLog';
-import DailyJournal from '../components/DailyJournal';
+import JournalPage from './JournalPage';
 import Playbooks from '../components/Playbooks';
 import Reports from '../components/Reports';
 import Tools from '../components/Tools';
@@ -96,7 +96,7 @@ const Index: React.FC = () => {
       case 'trades':
         return <TradeLog />;
       case 'journal':
-        return <DailyJournal selectedDate={(location.state as any)?.selectedDate} />;
+        return <JournalPage />;
       case 'reports':
         return <Reports />;
       case 'playbooks':
@@ -137,7 +137,7 @@ const Index: React.FC = () => {
       const context = navigationContextService.getContext();
       if (context) {
         // Navigate back to the source based on navigation context
-        switch (context.source) {
+        switch (context.source as any) {
           case 'dashboard':
             navigate('/', { state: { page: 'dashboard' } });
             break;

@@ -16,6 +16,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Trade } from '../types/trade';
+export type { Trade };
 
 // Collection names
 const TRADES_COLLECTION = 'trades';

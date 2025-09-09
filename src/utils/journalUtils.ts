@@ -48,12 +48,10 @@ export function createJournalEntryFromTemplate(
     updatedAt: now
   })) || [];
 
-  return {
+  const entryData: CreateJournalEntryData = {
     userId,
     date,
     sections,
-    templateId: template?.id,
-    templateName: template?.name,
     tradeReferences: [],
     dailyTradeIds: [],
     emotionalState: createDefaultEmotionalState(),
@@ -63,10 +61,19 @@ export function createJournalEntryFromTemplate(
     images: [],
     tags: [],
     isComplete: false,
-    wordCount: 0,
     isPrivate: true,
     sharedWith: []
   };
+
+  // Only include templateId and templateName if template is provided
+  if (template?.id) {
+    entryData.templateId = template.id;
+  }
+  if (template?.name) {
+    entryData.templateName = template.name;
+  }
+
+  return entryData;
 }
 
 /**
