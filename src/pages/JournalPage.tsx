@@ -234,9 +234,9 @@ const JournalPage: React.FC<JournalPageProps> = ({ selectedDate: initialDate }) 
       />
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-6 p-4 md:p-6 max-w-7xl mx-auto">
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-4 md:gap-6 p-4 md:p-6 max-w-7xl mx-auto items-start">
         {/* Main Content Area */}
-        <div className="xl:col-span-2 order-1">
+        <div className="xl:col-span-3 order-1">
           <JournalContent
             journalEntry={journalEntry}
             availableTemplates={availableTemplates}

@@ -166,9 +166,9 @@ const JournalContent: React.FC<JournalContentProps> = ({
         {/* Emotional State */}
         {journalEntry && journalEntry.sections.length > 0 && (
           <section className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-6">
               <Heart className="w-5 h-5 text-red-500" />
-              <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Emotional State</h2>
+              <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Emotional State Tracking</h2>
             </div>
             {renderEmotionalTracker()}
           </section>

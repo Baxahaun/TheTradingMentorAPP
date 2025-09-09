@@ -172,7 +172,8 @@ export const EmotionalTracker: React.FC<EmotionalTrackerProps> = ({
           selectedMood={emotionalState.preMarket.mood}
           onMoodChange={(mood) => handlePreMarketChange({ mood })}
           readOnly={readOnly}
-          size="large"
+          size="medium"
+          layout="horizontal"
         />
       </div>
 
@@ -315,7 +316,8 @@ export const EmotionalTracker: React.FC<EmotionalTrackerProps> = ({
           selectedMood={emotionalState.postMarket.overallMood}
           onMoodChange={(mood) => handlePostMarketChange({ overallMood: mood })}
           readOnly={readOnly}
-          size="large"
+          size="medium"
+          layout="horizontal"
         />
       </div>
 
@@ -363,7 +365,8 @@ export const EmotionalTracker: React.FC<EmotionalTrackerProps> = ({
             selectedMood={emotionalState.overallMood}
             onMoodChange={(mood) => handleOverallChange('overallMood', mood)}
             readOnly={readOnly}
-            size="medium"
+            size="small"
+            layout="horizontal"
           />
         </div>
       </div>

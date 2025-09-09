@@ -149,7 +149,7 @@ export const MoodSelector: React.FC<MoodSelectorProps> = ({
   // Layout configurations
   const layoutConfig = {
     grid: sizeConfig[size].grid,
-    horizontal: 'flex flex-wrap gap-2',
+    horizontal: 'flex flex-wrap gap-2 justify-start',
     vertical: 'flex flex-col gap-2'
   };
 
