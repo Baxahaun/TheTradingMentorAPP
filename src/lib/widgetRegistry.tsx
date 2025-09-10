@@ -3,6 +3,7 @@ import CalendarWidget from '../components/CalendarWidget';
 import PerformanceChartWidget from '../components/PerformanceChartWidget';
 import SetupAnalyticsWidget from '../components/SetupAnalyticsWidget';
 import PositionManagementAnalyticsWidget from '../components/PositionManagementAnalyticsWidget';
+import TradingPerformanceWidget from '../components/TradingPerformanceWidget';
 import { getWidgetSizeInfo } from '../components/ui/WidgetContainer';
 import { WidgetProps, Metrics } from '../types/widget';
 import { Trade } from '../types/trade';
@@ -234,15 +235,25 @@ export const WIDGET_REGISTRY: WidgetConfig[] = [
     category: 'analytics', 
     description: 'Analyze trading setup performance and patterns' 
   },
-  { 
-    id: 'positionManagement', 
-    title: 'Position Management', 
-    component: PositionManagementAnalyticsWidget, 
-    defaultLayout: { w: 12, h: 6 }, 
-    minSize: { w: 8, h: 4 }, 
+  {
+    id: 'tradingPerformance',
+    title: 'Trading Performance',
+    component: TradingPerformanceWidget,
+    defaultLayout: { w: 12, h: 6 },
+    minSize: { w: 8, h: 4 },
     maxSize: { w: 12, h: 8 },
-    category: 'analytics', 
-    description: 'Analyze partial close tracking and position management efficiency' 
+    category: 'analytics',
+    description: 'Comprehensive trading performance dashboard with metrics, charts, risk analysis, and currency pair breakdown'
+  },
+  {
+    id: 'positionManagement',
+    title: 'Position Management',
+    component: PositionManagementAnalyticsWidget,
+    defaultLayout: { w: 12, h: 6 },
+    minSize: { w: 8, h: 4 },
+    maxSize: { w: 12, h: 8 },
+    category: 'analytics',
+    description: 'Analyze partial close tracking and position management efficiency'
   }
 ];
 

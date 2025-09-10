@@ -8,14 +8,15 @@
         "C:\\Users\\rohle\\Coding Projects\\Tradejournal\\zella-trade-scribe"
       ],
       "alwaysAllow": [
-        "create-spec-doc",
         "request-approval",
         "delete-approval",
         "steering-guide",
         "create-steering-doc",
         "get-template-context",
         "spec-workflow-guide",
-        "get-steering-context"
+        "get-steering-context",
+        "create-spec-doc",
+        "manage-tasks"
       ]
     }
   }
