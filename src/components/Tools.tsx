@@ -8,13 +8,14 @@ import { ChartContainer, ChartTooltip } from './ui/chart';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts';
 import { CURRENCY_PAIRS, LOT_SIZES, calculatePipValue } from '../types/trade';
 import { useTradeContext } from '../contexts/TradeContext';
+import { CURRENT_TERMINOLOGY } from '../lib/terminologyConfig';
 
 
 const Tools: React.FC = () => {
   const { trades } = useTradeContext();
   const [activeTab, setActiveTab] = useState('pip-value');
 
-  // Pip Calculator State
+  // Price Movement Calculator State
   const [pipCalc, setPipCalc] = useState({
     currencyPair: '',
     lotSize: '1',
@@ -234,7 +235,7 @@ const Tools: React.FC = () => {
   };
 
   const tabs = [
-    { id: 'pip-value', label: 'Pip Value Calculator', icon: Calculator },
+    { id: 'pip-value', label: `${CURRENT_TERMINOLOGY.priceMovementLabel} Value Calculator`, icon: Calculator },
     { id: 'position-size', label: 'Position Size Calculator', icon: Target },
     { id: 'risk-calculator', label: 'Risk Calculator', icon: TrendingUp },
     { id: 'leverage-calculator', label: 'Leverage Calculator', icon: Shield },
@@ -253,12 +254,12 @@ const Tools: React.FC = () => {
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Calculator className="w-5 h-5 text-purple-600" />
-                <span>Pip Value Calculator</span>
+                <span>{CURRENT_TERMINOLOGY.priceMovementLabel} Value Calculator</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="pip-currency-pair">Currency Pair</Label>
+                <Label htmlFor="pip-currency-pair">{CURRENT_TERMINOLOGY.instrumentLabel}</Label>
                 <select
                   id="pip-currency-pair"
                   value={pipCalc.currencyPair}
@@ -331,14 +332,14 @@ const Tools: React.FC = () => {
               </div>
 
               <Button onClick={calculatePipValueHandler} className="w-full">
-                Calculate Pip Value
+                Calculate {CURRENT_TERMINOLOGY.priceMovementLabel} Value
               </Button>
 
               {pipCalc.pipValue !== null && (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <div className="flex items-center space-x-2 text-green-800">
                     <DollarSign className="w-5 h-5" />
-                    <span className="font-semibold">Pip Value: {pipCalc.accountCurrency} {pipCalc.pipValue.toFixed(2)}</span>
+                    <span className="font-semibold">{CURRENT_TERMINOLOGY.priceMovementLabel} Value: {pipCalc.accountCurrency} {pipCalc.pipValue.toFixed(2)}</span>
                   </div>
                   <p className="text-green-600 text-sm mt-1">
                     Each pip movement = {pipCalc.accountCurrency} {pipCalc.pipValue.toFixed(2)} profit/loss
@@ -385,7 +386,7 @@ const Tools: React.FC = () => {
               </div>
 
               <div>
-                <Label htmlFor="pos-currency-pair">Currency Pair</Label>
+                <Label htmlFor="pos-currency-pair">{CURRENT_TERMINOLOGY.instrumentLabel}</Label>
                 <select
                   id="pos-currency-pair"
                   value={positionCalc.currencyPair}
@@ -489,7 +490,7 @@ const Tools: React.FC = () => {
               </div>
 
               <div>
-                <Label htmlFor="risk-currency-pair">Currency Pair</Label>
+                <Label htmlFor="risk-currency-pair">{CURRENT_TERMINOLOGY.instrumentLabel}</Label>
                 <select
                   id="risk-currency-pair"
                   value={riskCalc.currencyPair}
@@ -692,7 +693,7 @@ const Tools: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="margin-currency-pair">Currency Pair</Label>
+                  <Label htmlFor="margin-currency-pair">{CURRENT_TERMINOLOGY.instrumentLabel}</Label>
                   <select
                     id="margin-currency-pair"
                     value={marginCalc.currencyPair}
@@ -1327,7 +1328,7 @@ const Tools: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <h4 className="font-semibold text-gray-900 mb-2">Pip Value Calculator</h4>
+                <h4 className="font-semibold text-gray-900 mb-2">{CURRENT_TERMINOLOGY.priceMovementLabel} Value Calculator</h4>
                 <p className="text-gray-600 text-sm mb-3">Calculate the monetary value of each pip movement for your position size.</p>
                 <ul className="text-gray-600 text-sm space-y-1 list-disc list-inside">
                   <li>Enter your currency pair and position size</li>

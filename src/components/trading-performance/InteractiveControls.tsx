@@ -13,6 +13,7 @@ import {
   ChartPeriod,
   CurrencyPairFilter
 } from '../../types/tradingPerformance';
+import { CURRENT_TERMINOLOGY } from '../../lib/terminologyConfig';
 
 /**
  * Interactive Controls Component
@@ -225,7 +226,7 @@ const InteractiveControls: React.FC<ExtendedInteractiveControlsProps> = ({
               <div className="space-y-3 border-t pt-3">
                 <div className="flex items-center gap-2">
                   <Filter className="h-4 w-4 text-muted-foreground" />
-                  <Label className="text-sm font-medium">Currency Pair Filters</Label>
+                  <Label className="text-sm font-medium">{CURRENT_TERMINOLOGY.instrumentLabel} Filters</Label>
                 </div>
 
                 <div className="space-y-3">

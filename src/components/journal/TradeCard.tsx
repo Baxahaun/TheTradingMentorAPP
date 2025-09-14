@@ -15,6 +15,7 @@ import {
   Zap
 } from 'lucide-react';
 import { Trade } from '../../types/trade';
+import { CURRENT_TERMINOLOGY } from '../../lib/terminologyConfig';
 
 interface TradeCardProps {
   trade: Trade;
@@ -209,7 +210,7 @@ export default function TradeCard({
 
                 {pips && (
                   <div className="text-center p-2 bg-white dark:bg-gray-800 rounded">
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Pips</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{CURRENT_TERMINOLOGY.priceMovementLabel}</div>
                     <div className={`font-medium ${isWinning ? 'text-green-600' : 'text-red-600'}`}>
                       {pips > 0 ? '+' : ''}{pips.toFixed(1)}
                     </div>

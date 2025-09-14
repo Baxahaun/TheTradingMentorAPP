@@ -1,5 +1,6 @@
 import React from 'react';
 import { Trade } from '../types/trade';
+import { CURRENT_TERMINOLOGY } from '../lib/terminologyConfig';
 
 export interface TableColumn {
   id: string;
@@ -18,7 +19,7 @@ export const AVAILABLE_COLUMNS: TableColumn[] = [
   // Basic Information
   {
     id: 'currencyPair',
-    label: 'Currency Pair',
+    label: CURRENT_TERMINOLOGY.instrumentLabel,
     field: 'currencyPair',
     category: 'basic',
     width: '140px',
@@ -98,16 +99,16 @@ export const AVAILABLE_COLUMNS: TableColumn[] = [
   },
   {
     id: 'spread',
-    label: 'Spread',
+    label: CURRENT_TERMINOLOGY.commissionLabel,
     field: 'spread',
     category: 'pricing',
     width: '100px',
     align: 'right',
-    format: (value: number) => value ? `${value.toFixed(1)} pips` : '--'
+    format: (value: number) => value ? `${value.toFixed(1)} ${CURRENT_TERMINOLOGY.priceMovementUnit}` : '--'
   },
   {
     id: 'pips',
-    label: 'Pips',
+    label: CURRENT_TERMINOLOGY.priceMovementLabel,
     field: 'pips',
     category: 'pricing',
     width: '100px',
@@ -141,7 +142,7 @@ export const AVAILABLE_COLUMNS: TableColumn[] = [
   // Position Information
   {
     id: 'lotSize',
-    label: 'Lot Size',
+    label: CURRENT_TERMINOLOGY.positionSizeLabel,
     field: 'lotSize',
     category: 'position',
     width: '120px',
@@ -228,7 +229,7 @@ export const AVAILABLE_COLUMNS: TableColumn[] = [
   },
   {
     id: 'swap',
-    label: 'Swap',
+    label: CURRENT_TERMINOLOGY.swapLabel,
     field: 'swap',
     category: 'risk',
     width: '100px',

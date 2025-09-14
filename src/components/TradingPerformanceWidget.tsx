@@ -21,6 +21,7 @@ import {
   ChartPeriod,
   CurrencyPairFilter
 } from '../types/tradingPerformance';
+import { CURRENT_TERMINOLOGY } from '../lib/terminologyConfig';
 
 /**
  * Main Trading Performance Widget Component
@@ -258,7 +259,7 @@ const TradingPerformanceWidget: React.FC<TradingPerformanceWidgetProps> = ({
             />
           ) : (
             <div className="flex items-center justify-center h-32 bg-gray-50 rounded-lg">
-              <p className="text-sm text-muted-foreground">No currency pair data available</p>
+              <p className="text-sm text-muted-foreground">No {CURRENT_TERMINOLOGY.instrumentLabel.toLowerCase()} data available</p>
             </div>
           )}
         </div>
@@ -300,7 +301,7 @@ const TradingPerformanceWidget: React.FC<TradingPerformanceWidgetProps> = ({
         />
       ) : (
         <div className="flex items-center justify-center h-40 bg-gray-50 rounded-lg">
-          <p className="text-sm text-muted-foreground">No currency pair data available</p>
+          <p className="text-sm text-muted-foreground">No {CURRENT_TERMINOLOGY.instrumentLabel.toLowerCase()} data available</p>
         </div>
       )}
 

@@ -12,6 +12,7 @@ import {
   BarChart3
 } from 'lucide-react';
 import { Trade } from '../../types/trade';
+import { CURRENT_TERMINOLOGY } from '../../lib/terminologyConfig';
 
 interface TradePreviewProps {
   trade: Trade;
@@ -50,7 +51,7 @@ export default function TradePreview({
         <div className="flex items-center justify-between">
           {/* Left Side - Trade Info */}
           <div className="flex items-center gap-3">
-            {/* Currency Pair & Direction */}
+            {/* Instrument & Direction */}
             <div className="flex items-center gap-2">
               <span className="font-semibold text-gray-800 dark:text-white">
                 {trade.currencyPair}
@@ -92,7 +93,7 @@ export default function TradePreview({
               {(trade.pnl || 0) >= 0 ? '+' : ''}${(trade.pnl || 0).toFixed(2)}
             </span>
 
-            {/* Pips (if available) */}
+            {/* Price Movement (if available) */}
             {pips && (
               <span className={`text-xs font-medium ${
                 isWinning ? 'text-green-600' : 'text-red-600'

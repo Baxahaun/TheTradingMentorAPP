@@ -1,5 +1,6 @@
 import React from 'react';
 import { Trade } from '../types/trade';
+import { CURRENT_TERMINOLOGY } from '../lib/terminologyConfig';
 
 export interface DashboardWidget {
   id: string;
@@ -211,7 +212,7 @@ export const AVAILABLE_WIDGETS: DashboardWidget[] = [
   },
   {
     id: 'totalPips',
-    label: 'Total Pips',
+    label: `Total ${CURRENT_TERMINOLOGY.priceMovementLabel}`,
     category: 'analytics',
     getValue: (trades) => {
       const total = trades.reduce((sum, trade) => sum + (trade.pips || 0), 0);
@@ -220,16 +221,16 @@ export const AVAILABLE_WIDGETS: DashboardWidget[] = [
         color: total >= 0 ? 'green' : 'red'
       };
     },
-    description: 'Cumulative pips gained/lost'
+    description: `Cumulative ${CURRENT_TERMINOLOGY.priceMovementUnit} gained/lost`
   },
   {
     id: 'avgPips',
-    label: 'Avg Pips',
+    label: `Avg ${CURRENT_TERMINOLOGY.priceMovementLabel}`,
     category: 'analytics',
     getValue: (trades) => {
       const closedTrades = trades.filter(trade => trade.status === 'closed');
       if (closedTrades.length === 0) return { value: '0.0' };
-      
+
       const total = closedTrades.reduce((sum, trade) => sum + (trade.pips || 0), 0);
       const avg = total / closedTrades.length;
       return {
@@ -237,7 +238,7 @@ export const AVAILABLE_WIDGETS: DashboardWidget[] = [
         color: avg >= 0 ? 'green' : 'red'
       };
     },
-    description: 'Average pips per trade'
+    description: `Average ${CURRENT_TERMINOLOGY.priceMovementUnit} per trade`
   },
   {
     id: 'bestTrade',

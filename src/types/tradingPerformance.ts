@@ -70,9 +70,9 @@ export interface ChartDataPoint {
   placement?: 'start' | 'middle' | 'end';
 }
 
-// Currency pair specific performance metrics
-export interface CurrencyPairMetrics {
-  currencyPair: string;
+// Futures instrument specific performance metrics
+export interface InstrumentMetrics {
+  instrument: string;
   totalTrades: number;
   winningTrades: number;
   losingTrades: number;
@@ -161,7 +161,7 @@ export type ChartPeriod = 'daily' | 'weekly' | 'monthly';
 // Widget props extending base WidgetProps
 export interface TradingPerformanceWidgetProps {
   performanceMetrics: PerformanceMetrics;
-  currencyPairMetrics: CurrencyPairMetrics[];
+  instrumentMetrics: InstrumentMetrics[];
   riskMetrics: RiskMetrics;
   chartData: ChartDataPoint[];
   timeRange: TimeRange;
@@ -170,14 +170,14 @@ export interface TradingPerformanceWidgetProps {
   error?: string;
   onTimeRangeChange?: (range: TimeRange) => void;
   onChartPeriodChange?: (period: ChartPeriod) => void;
-  onCurrencyPairFilter?: (currencyPair: string | null) => void;
+  onInstrumentFilter?: (instrument: string | null) => void;
   onExportData?: () => void;
   size: { w: number; h: number };
 }
 
-// Filter options for currency pairs
-export interface CurrencyPairFilter {
-  selectedPairs: string[];
+// Filter options for futures instruments
+export interface InstrumentFilter {
+  selectedInstruments: string[];
   minTrades?: number;
   performanceOrder: 'pnl' | 'winRate' | 'trades';
 }
@@ -186,7 +186,7 @@ export interface CurrencyPairFilter {
 export interface TradingPerformanceControls {
   timeRange: TimeRange;
   chartPeriod: ChartPeriod;
-  currencyPairFilter: CurrencyPairFilter;
+  instrumentFilter: InstrumentFilter;
   showRiskMetrics: boolean;
   showDebugInfo: boolean;
 }
@@ -204,12 +204,12 @@ export interface PerformanceChartPanelProps {
   onDataPointClick?: (point: ChartDataPoint) => void;
 }
 
-export interface CurrencyPairBreakdownProps {
-  metrics: CurrencyPairMetrics[];
-  filter: CurrencyPairFilter;
+export interface InstrumentBreakdownProps {
+  metrics: InstrumentMetrics[];
+  filter: InstrumentFilter;
   size: { w: number; h: number };
-  onPairSelect?: (currencyPair: string) => void;
-  onFilterChange?: (filter: CurrencyPairFilter) => void;
+  onInstrumentSelect?: (instrument: string) => void;
+  onFilterChange?: (filter: InstrumentFilter) => void;
 }
 
 export interface RiskMetricsDisplayProps {
@@ -229,7 +229,7 @@ export interface PerformanceCalculationParams {
   trades: Trade[];
   startDate?: string;
   endDate?: string;
-  currencyPairs?: string[];
+  instruments?: string[];
   timeRange?: TimeRange;
   includeRiskMetrics?: boolean;
 }

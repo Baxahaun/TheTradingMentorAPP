@@ -1,13 +1,13 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { 
-  Upload, 
-  Image as ImageIcon, 
-  ZoomIn, 
-  ZoomOut, 
-  Maximize2, 
-  X, 
-  Edit3, 
-  Save, 
+import {
+  Upload,
+  Image as ImageIcon,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  X,
+  Edit3,
+  Save,
   Trash2,
   Grid3X3,
   List,
@@ -34,6 +34,7 @@ import { ChartEditorDialog } from './ChartEditorDialog';
 import { LazyChartImage, ChartThumbnail } from './LazyChartImage';
 import { VirtualizedChartGallery } from './VirtualizedList';
 import { useMemoryManagement, useDebouncedCallback, usePerformanceMonitor } from '@/lib/performanceOptimization';
+import { CURRENT_TERMINOLOGY } from '@/lib/terminologyConfig';
 
 interface ChartGalleryManagerProps {
   tradeId: string;
@@ -116,7 +117,7 @@ export const ChartGalleryManager: React.FC<ChartGalleryManagerProps> = ({
       } catch (error) {
         console.error('Upload error:', error);
         toast({
-          title: 'Upload Failed',
+          title: 'Chart Upload Failed',
           description: `Failed to upload ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`,
           variant: 'destructive'
         });
@@ -131,14 +132,14 @@ export const ChartGalleryManager: React.FC<ChartGalleryManagerProps> = ({
       if (validCharts.length > 0) {
         onChartsChange([...charts, ...validCharts]);
         toast({
-          title: 'Upload Successful',
+          title: 'Chart Upload Successful',
           description: `${validCharts.length} chart(s) uploaded successfully`
         });
       }
     } catch (error) {
       console.error('Batch upload error:', error);
       toast({
-        title: 'Upload Error',
+        title: 'Chart Upload Error',
         description: 'Some files failed to upload',
         variant: 'destructive'
       });
@@ -168,13 +169,13 @@ export const ChartGalleryManager: React.FC<ChartGalleryManagerProps> = ({
       onChartsChange(updatedCharts);
       
       toast({
-        title: 'Chart Deleted',
+        title: `${CURRENT_TERMINOLOGY.instrumentLabel} Chart Deleted`,
         description: 'Chart has been successfully deleted'
       });
     } catch (error) {
       console.error('Delete error:', error);
       toast({
-        title: 'Delete Failed',
+        title: 'Chart Delete Failed',
         description: 'Failed to delete chart',
         variant: 'destructive'
       });
@@ -191,13 +192,13 @@ export const ChartGalleryManager: React.FC<ChartGalleryManagerProps> = ({
       setEditingChart(null);
       
       toast({
-        title: 'Chart Updated',
+        title: `${CURRENT_TERMINOLOGY.instrumentLabel} Chart Updated`,
         description: 'Chart details have been updated'
       });
     } catch (error) {
       console.error('Update error:', error);
       toast({
-        title: 'Update Failed',
+        title: 'Chart Update Failed',
         description: 'Failed to update chart',
         variant: 'destructive'
       });

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Trade, TradingAccount, AccountStats } from '../types/trade';
 import { tradeService } from '../lib/firebaseService';
 import { accountService } from '../lib/accountService';
-import { DataMigrationService } from '../lib/dataMigration';
+import { DataMigrationService } from '../lib/dataMigrationService';
 import { EnhancedDataMigrationService } from '../lib/enhancedDataMigration';
 import { widgetDataService } from '../lib/widgetDataService';
 import navigationContextService from '../lib/navigationContextService';
@@ -141,7 +141,8 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       // Use the enhanced migration service
       try {
-        const result = await DataMigrationService.migrateToFirebase(user.uid);
+        const migrationService = new DataMigrationService();
+        const result = await migrationService.migrateTrades([]);
         if (result.success) {
           console.log('Migration completed:', result.migrated);
         } else {

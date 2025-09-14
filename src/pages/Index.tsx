@@ -6,7 +6,7 @@ import AddTrade from '../components/AddTrade';
 import TradeLog from '../components/TradeLog';
 import JournalPage from './JournalPage';
 import Playbooks from '../components/Playbooks';
-import Reports from '../components/Reports';
+import ReportsPage from './ReportsPage';
 import Tools from '../components/Tools';
 import ImportTrades from '../components/ImportTrades';
 import TradeDetailsPage from './TradeDetailsPage';
@@ -98,7 +98,7 @@ const Index: React.FC = () => {
       case 'journal':
         return <JournalPage />;
       case 'reports':
-        return <Reports />;
+        return <ReportsPage />;
       case 'playbooks':
         return <Playbooks />;
       case 'tools':

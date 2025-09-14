@@ -1,33 +1,37 @@
 import { Trade } from '../types/trade';
 import { tradeService } from './firebaseService';
+import { CURRENT_TERMINOLOGY } from './terminologyConfig';
 
 /**
- * Sample Forex Trades for Demo/Testing
- * Realistic trading scenarios with variety of outcomes and strategies
+ * Sample Futures Trades for Demo/Testing
+ * Realistic futures trading scenarios with variety of outcomes and strategies
+ * Uses major futures contracts like ES, NQ, CL, GC, SI
  */
-export const sampleForexTrades: Omit<Trade, 'id'>[] = [
+export const sampleFuturesTrades: Omit<Trade, 'id'>[] = [
   {
-    currencyPair: 'EUR/USD',
+    accountId: 'demo-account',
+    currencyPair: 'ES', // E-mini S&P 500
     date: '2024-12-08',
     timeIn: '08:30:00',
     timeOut: '10:15:00',
-    session: 'european',
+    timestamp: Date.now(),
+    session: 'us',
     side: 'long',
-    entryPrice: 1.05420,
-    exitPrice: 1.05580,
-    spread: 1.2,
-    lotSize: 0.1,
+    entryPrice: 4567.25,
+    exitPrice: 4583.50,
+    spread: 0.25,
+    lotSize: 2,
     lotType: 'standard',
-    units: 10000,
-    pips: 16.0,
-    pipValue: 1.0,
-    pnl: 160.00,
-    commission: 3.50,
+    units: 2,
+    pips: 16.25,
+    pipValue: 12.50,
+    pnl: 325.00,
+    commission: 2.50,
     swap: 0,
-    stopLoss: 1.05200,
-    takeProfit: 1.05700,
-    leverage: 30,
-    marginUsed: 352.00,
+    stopLoss: 4550.00,
+    takeProfit: 4600.00,
+    leverage: 1,
+    marginUsed: 11417.00,
     accountCurrency: 'USD',
     strategy: 'Breakout',
     marketConditions: 'Bullish trend continuation',
@@ -36,64 +40,68 @@ export const sampleForexTrades: Omit<Trade, 'id'>[] = [
     emotions: 'Confident',
     notes: 'Clean breakout above resistance with good volume. Followed trend perfectly.',
     status: 'closed',
-    riskAmount: 220.00,
-    rMultiple: 0.73
+    riskAmount: 340.00,
+    rMultiple: 0.96
   },
   {
-    currencyPair: 'GBP/JPY',
+    accountId: 'demo-account',
+    currencyPair: 'NQ', // E-mini Nasdaq-100
     date: '2024-12-08',
     timeIn: '13:45:00',
     timeOut: '14:20:00',
-    session: 'overlap',
+    timestamp: Date.now() + 86400000,
+    session: 'us',
     side: 'short',
-    entryPrice: 196.85,
-    exitPrice: 196.45,
-    spread: 2.1,
-    lotSize: 0.05,
+    entryPrice: 17850.25,
+    exitPrice: 17775.50,
+    spread: 0.50,
+    lotSize: 1,
     lotType: 'standard',
-    units: 5000,
-    pips: 40.0,
-    pipValue: 0.65,
-    pnl: 130.50,
-    commission: 4.20,
-    swap: -1.50,
-    stopLoss: 197.20,
-    takeProfit: 196.30,
-    leverage: 50,
-    marginUsed: 197.00,
+    units: 1,
+    pips: 74.75,
+    pipValue: 20.00,
+    pnl: 1495.00,
+    commission: 2.00,
+    swap: 0,
+    stopLoss: 17900.00,
+    takeProfit: 17750.00,
+    leverage: 1,
+    marginUsed: 17850.00,
     accountCurrency: 'USD',
     strategy: 'Reversal',
     marketConditions: 'Overbought conditions',
     timeframe: '15M',
     confidence: 7,
     emotions: 'Cautious',
-    notes: 'RSI divergence signaled reversal. Quick scalp trade on JPY strength.',
+    notes: 'RSI divergence signaled reversal. Quick scalp trade on tech sell-off.',
     status: 'closed',
-    riskAmount: 175.00,
-    rMultiple: 0.75
+    riskAmount: 500.00,
+    rMultiple: 3.0
   },
   {
-    currencyPair: 'AUD/USD',
+    accountId: 'demo-account',
+    currencyPair: 'CL', // WTI Crude Oil
     date: '2024-12-07',
     timeIn: '22:10:00',
     timeOut: '23:55:00',
-    session: 'asian',
+    timestamp: Date.now() + 172800000,
+    session: 'us',
     side: 'long',
-    entryPrice: 0.64150,
-    exitPrice: 0.63980,
-    spread: 1.5,
-    lotSize: 0.15,
+    entryPrice: 78.45,
+    exitPrice: 77.75,
+    spread: 0.02,
+    lotSize: 5,
     lotType: 'standard',
-    units: 15000,
-    pips: -17.0,
-    pipValue: 1.5,
-    pnl: -255.00,
-    commission: 2.80,
-    swap: 0.75,
-    stopLoss: 0.63950,
-    takeProfit: 0.64500,
-    leverage: 25,
-    marginUsed: 385.00,
+    units: 5,
+    pips: -70.0,
+    pipValue: 10.00,
+    pnl: -350.00,
+    commission: 5.00,
+    swap: 0,
+    stopLoss: 77.50,
+    takeProfit: 80.00,
+    leverage: 1,
+    marginUsed: 1961.00,
     accountCurrency: 'USD',
     strategy: 'Support Bounce',
     marketConditions: 'Ranging market',
@@ -102,31 +110,33 @@ export const sampleForexTrades: Omit<Trade, 'id'>[] = [
     emotions: 'Frustrated',
     notes: 'Support level failed to hold. Should have waited for clearer confirmation.',
     status: 'closed',
-    riskAmount: 300.00,
-    rMultiple: -0.85
+    riskAmount: 735.00,
+    rMultiple: -0.48
   },
   {
-    currencyPair: 'USD/JPY',
+    accountId: 'demo-account',
+    currencyPair: 'GC', // Gold Futures
     date: '2024-12-07',
     timeIn: '15:30:00',
     timeOut: '16:45:00',
+    timestamp: Date.now() + 259200000,
     session: 'us',
     side: 'short',
-    entryPrice: 149.85,
-    exitPrice: 149.25,
-    spread: 1.8,
-    lotSize: 0.08,
+    entryPrice: 2650.50,
+    exitPrice: 2640.00,
+    spread: 0.10,
+    lotSize: 2,
     lotType: 'standard',
-    units: 8000,
-    pips: 60.0,
-    pipValue: 0.533,
-    pnl: 320.00,
-    commission: 3.20,
-    swap: -2.10,
-    stopLoss: 150.40,
-    takeProfit: 149.00,
-    leverage: 40,
-    marginUsed: 300.00,
+    units: 2,
+    pips: 1050.0,
+    pipValue: 10.00,
+    pnl: 2100.00,
+    commission: 8.00,
+    swap: 0,
+    stopLoss: 2660.00,
+    takeProfit: 2640.00,
+    leverage: 1,
+    marginUsed: 13250.00,
     accountCurrency: 'USD',
     strategy: 'News Trading',
     marketConditions: 'USD weakness after data',
@@ -135,31 +145,33 @@ export const sampleForexTrades: Omit<Trade, 'id'>[] = [
     emotions: 'Excited',
     notes: 'Perfect news trade! Weak US employment data triggered massive USD sell-off.',
     status: 'closed',
-    riskAmount: 440.00,
-    rMultiple: 0.73
+    riskAmount: 2100.00,
+    rMultiple: 1.0
   },
   {
-    currencyPair: 'EUR/GBP',
+    accountId: 'demo-account',
+    currencyPair: 'SI', // Silver Futures
     date: '2024-12-06',
     timeIn: '11:20:00',
     timeOut: '12:10:00',
-    session: 'european',
+    timestamp: Date.now() + 345600000,
+    session: 'us',
     side: 'long',
-    entryPrice: 0.83240,
-    exitPrice: 0.83420,
-    spread: 1.0,
-    lotSize: 0.12,
+    entryPrice: 29.85,
+    exitPrice: 30.15,
+    spread: 0.005,
+    lotSize: 10,
     lotType: 'standard',
-    units: 12000,
-    pips: 18.0,
-    pipValue: 1.2,
-    pnl: 216.00,
-    commission: 2.50,
-    swap: 0.50,
-    stopLoss: 0.83100,
-    takeProfit: 0.83450,
-    leverage: 33,
-    marginUsed: 302.00,
+    units: 10,
+    pips: 30.0,
+    pipValue: 25.00,
+    pnl: 750.00,
+    commission: 4.00,
+    swap: 0,
+    stopLoss: 29.50,
+    takeProfit: 30.25,
+    leverage: 1,
+    marginUsed: 7450.00,
     accountCurrency: 'USD',
     strategy: 'Channel Trading',
     marketConditions: 'Consolidation',
@@ -168,27 +180,27 @@ export const sampleForexTrades: Omit<Trade, 'id'>[] = [
     emotions: 'Patient',
     notes: 'Nice bounce from channel bottom. Textbook technical analysis trade.',
     status: 'closed',
-    riskAmount: 168.00,
-    rMultiple: 1.29
+    riskAmount: 1750.00,
+    rMultiple: 0.43
   }
 ];
 
 /**
- * Add sample trades to a user's account
- * Useful for demo purposes and testing
+ * Add sample futures trades to a user's account
+ * Useful for demo purposes and testing futures trading scenarios
  */
 export async function addSampleTrades(userId: string): Promise<void> {
   try {
-    console.log('Adding sample forex trades for user:', userId);
-    
-    for (const trade of sampleForexTrades) {
+    console.log(`Adding sample ${CURRENT_TERMINOLOGY.instrumentLabel.toLowerCase()} trades for user:`, userId);
+
+    for (const trade of sampleFuturesTrades) {
       await tradeService.addTrade(userId, {
         ...trade,
-        notes: `${trade.notes} [SAMPLE DATA - Can be deleted]`
+        notes: `${trade.notes} [SAMPLE ${CURRENT_TERMINOLOGY.instrumentLabel} DATA - Can be deleted]`
       });
     }
-    
-    console.log(`Successfully added ${sampleForexTrades.length} sample trades`);
+
+    console.log(`Successfully added ${sampleFuturesTrades.length} sample ${CURRENT_TERMINOLOGY.instrumentLabel.toLowerCase()} trades`);
   } catch (error) {
     console.error('Error adding sample trades:', error);
     throw error;
@@ -201,22 +213,22 @@ export async function addSampleTrades(userId: string): Promise<void> {
  */
 export async function removeSampleTrades(userId: string): Promise<number> {
   try {
-    console.log('Removing sample trades for user:', userId);
-    
+    console.log(`Removing sample ${CURRENT_TERMINOLOGY.instrumentLabel.toLowerCase()} trades for user:`, userId);
+
     // Get all trades
     const allTrades = await tradeService.getTrades(userId);
-    
+
     // Find sample trades (marked with [SAMPLE DATA])
-    const sampleTrades = allTrades.filter(trade => 
-      trade.notes?.includes('[SAMPLE DATA - Can be deleted]')
+    const sampleTrades = allTrades.filter(trade =>
+      trade.notes?.includes(`[SAMPLE ${CURRENT_TERMINOLOGY.instrumentLabel} DATA - Can be deleted]`)
     );
-    
+
     // Delete each sample trade
     for (const trade of sampleTrades) {
       await tradeService.deleteTrade(userId, trade.id);
     }
-    
-    console.log(`Successfully removed ${sampleTrades.length} sample trades`);
+
+    console.log(`Successfully removed ${sampleTrades.length} sample ${CURRENT_TERMINOLOGY.instrumentLabel.toLowerCase()} trades`);
     return sampleTrades.length;
   } catch (error) {
     console.error('Error removing sample trades:', error);
@@ -230,8 +242,8 @@ export async function removeSampleTrades(userId: string): Promise<number> {
 export async function hasSampleTrades(userId: string): Promise<boolean> {
   try {
     const allTrades = await tradeService.getTrades(userId);
-    return allTrades.some(trade => 
-      trade.notes?.includes('[SAMPLE DATA - Can be deleted]')
+    return allTrades.some(trade =>
+      trade.notes?.includes(`[SAMPLE ${CURRENT_TERMINOLOGY.instrumentLabel} DATA - Can be deleted]`)
     );
   } catch (error) {
     console.error('Error checking for sample trades:', error);

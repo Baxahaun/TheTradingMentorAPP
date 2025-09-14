@@ -25,6 +25,7 @@ import {
 } from '../types/tradingPerformance';
 import { debounce } from '../utils/debounce';
 import { memoize } from '../utils/performanceUtils';
+import { FUTURES_CONTRACT_SPECS, getContractSpec } from '../lib/futuresContracts';
 
 /**
  * Configuration interface for trading performance calculations
@@ -231,7 +232,7 @@ export class TradingPerformanceService {
     const zellaScore = this.calculateZellaScore(profitFactor, winRate, tradeExpectancy);
 
     // Advanced metrics
-    const avgRMultiple = this.calculateAverageMultiple(validTrades);
+    const averageRMultiple = this.calculateAverageMultiple(validTrades);
     const totalPips = validTrades.reduce((sum, t) => sum + (t.pips || 0), 0);
     const totalCommission = validTrades.reduce((sum, t) => sum + (t.commission || 0), 0);
     const totalCommissionPercentage = totalCommission !== 0 && totalPnL !== 0 ?
@@ -986,6 +987,237 @@ export class TradingPerformanceService {
       hitRate: 0,
       totalOperations: 0,
       cacheEntries: 0
+    };
+  }
+
+  // ===== FUTURES-SPECIFIC CALCULATION METHODS =====
+
+  /**
+   * Calculate point-based P&L for futures trades
+   * @param trade - Futures trade with contract specifications
+   * @returns Point-based P&L calculation
+   */
+  public calculateFuturesPnL(trade: Trade): number {
+    // Skip if not a futures trade or missing required data
+    if (!this.isFuturesTrade(trade) || !trade.contractSize || !trade.tickValue) {
+      return trade.pnl || 0; // Fall back to existing P&L
+    }
+
+    // For futures, P&L is calculated as: (Exit Price - Entry Price) * Contract Size * Tick Value per Point
+    const priceDiff = (trade.exitPrice || 0) - trade.entryPrice;
+    const points = priceDiff / (trade.tickSize || 1); // Convert price difference to points
+
+    return points * trade.contractSize * trade.tickValue;
+  }
+
+  /**
+   * Calculate contract value at a given price level
+   * @param symbol - Futures contract symbol
+   * @param price - Price level
+   * @returns Contract value in dollars
+   */
+  public calculateContractValue(symbol: string, price: number): number {
+    const contractSpec = getContractSpec(symbol);
+    if (!contractSpec) return 0;
+
+    return contractSpec.contractSize * price;
+  }
+
+  /**
+   * Calculate margin requirement for futures position
+   * @param symbol - Futures contract symbol
+   * @param contracts - Number of contracts
+   * @returns Required margin in dollars
+   */
+  public calculateMarginRequirement(symbol: string, contracts: number): number {
+    const contractSpec = getContractSpec(symbol);
+    if (!contractSpec) return 0;
+
+    return contractSpec.initialMargin * contracts;
+  }
+
+  /**
+   * Calculate futures-specific performance metrics
+   * @param trades - Array of trades (may include futures and forex)
+   * @returns Enhanced performance metrics for futures trading
+   */
+  public calculateFuturesPerformanceMetrics(trades: Trade[]): PerformanceMetrics & {
+    futuresTrades: number;
+    totalContractValue: number;
+    averageMarginUsed: number;
+    pointEfficiency: number;
+  } {
+    // Get base metrics
+    const baseMetrics = this.calculatePerformanceMetrics(trades);
+
+    // Filter futures trades
+    const futuresTrades = trades.filter(trade => this.isFuturesTrade(trade));
+
+    if (futuresTrades.length === 0) {
+      return {
+        ...baseMetrics,
+        futuresTrades: 0,
+        totalContractValue: 0,
+        averageMarginUsed: 0,
+        pointEfficiency: 0
+      };
+    }
+
+    // Calculate futures-specific metrics
+    const totalContractValue = futuresTrades.reduce((sum, trade) => {
+      if (trade.contractSize && trade.entryPrice) {
+        return sum + (trade.contractSize * trade.entryPrice);
+      }
+      return sum;
+    }, 0);
+
+    const totalMarginUsed = futuresTrades.reduce((sum, trade) => {
+      if (trade.contractSize && trade.tickValue) {
+        const contractSpec = getContractSpec(trade.currencyPair);
+        return sum + (contractSpec?.initialMargin || 0) * trade.contractSize;
+      }
+      return sum;
+    }, 0);
+
+    const averageMarginUsed = futuresTrades.length > 0 ? totalMarginUsed / futuresTrades.length : 0;
+
+    // Calculate point efficiency (points captured vs points available)
+    const totalPointsCaptured = futuresTrades.reduce((sum, trade) => {
+      if (this.isFuturesTrade(trade) && trade.tickValue && trade.tickSize) {
+        const pnlPoints = (trade.pnl || 0) / (trade.tickValue * (trade.contractSize || 1));
+        return sum + Math.abs(pnlPoints);
+      }
+      return sum;
+    }, 0);
+
+    const pointEfficiency = totalPointsCaptured > 0 ? ((baseMetrics.totalPips || 0) / totalPointsCaptured) * 100 : 0;
+
+    return {
+      ...baseMetrics,
+      futuresTrades: futuresTrades.length,
+      totalContractValue,
+      averageMarginUsed,
+      pointEfficiency
+    };
+  }
+
+  /**
+   * Calculate futures contract-specific metrics
+   * @param symbol - Futures contract symbol
+   * @param trades - Trades for this specific contract
+   * @returns Contract-specific performance metrics
+   */
+  public calculateContractMetrics(symbol: string, trades: Trade[]): {
+    contractSpec: any;
+    totalContracts: number;
+    averageContractValue: number;
+    marginEfficiency: number;
+    pointPerformance: number;
+  } {
+    const contractSpec = getContractSpec(symbol);
+    const contractTrades = trades.filter(trade => trade.currencyPair === symbol && this.isFuturesTrade(trade));
+
+    if (!contractSpec || contractTrades.length === 0) {
+      return {
+        contractSpec: null,
+        totalContracts: 0,
+        averageContractValue: 0,
+        marginEfficiency: 0,
+        pointPerformance: 0
+      };
+    }
+
+    const totalContracts = contractTrades.reduce((sum, trade) => sum + (trade.contractSize || 0), 0);
+    const totalContractValue = contractTrades.reduce((sum, trade) => {
+      return sum + (contractSpec.contractSize * trade.entryPrice);
+    }, 0);
+
+    const averageContractValue = totalContractValue / contractTrades.length;
+
+    const totalMarginRequired = totalContracts * contractSpec.initialMargin;
+    const totalPnL = contractTrades.reduce((sum, trade) => sum + (trade.pnl || 0), 0);
+    const marginEfficiency = totalMarginRequired > 0 ? (totalPnL / totalMarginRequired) * 100 : 0;
+
+    const totalPoints = contractTrades.reduce((sum, trade) => {
+      if (trade.tickValue && trade.contractSize) {
+        return sum + ((trade.pnl || 0) / (trade.tickValue * trade.contractSize));
+      }
+      return sum;
+    }, 0);
+
+    const pointPerformance = contractTrades.length > 0 ? totalPoints / contractTrades.length : 0;
+
+    return {
+      contractSpec,
+      totalContracts,
+      averageContractValue,
+      marginEfficiency,
+      pointPerformance
+    };
+  }
+
+  /**
+   * Check if a trade is a futures trade
+   * @param trade - Trade to check
+   * @returns True if the trade is identified as futures
+   */
+  private isFuturesTrade(trade: Trade): boolean {
+    // Check for futures-specific fields
+    return !!(trade.contractSize || trade.tickValue || trade.tickSize || trade.marginRequirement || trade.exchange);
+  }
+
+  /**
+   * Calculate futures-specific risk metrics
+   * @param trades - Array of trades
+   * @returns Enhanced risk metrics for futures trading
+   */
+  public calculateFuturesRiskMetrics(trades: Trade[]): RiskMetrics & {
+    futuresTrades: number;
+    averageMarginUtilization: number;
+    marginToEquityRatio: number;
+    contractConcentrationRisk: number;
+  } {
+    const baseRiskMetrics = this.calculateRiskMetrics(trades);
+    const futuresTrades = trades.filter(trade => this.isFuturesTrade(trade));
+
+    if (futuresTrades.length === 0) {
+      return {
+        ...baseRiskMetrics,
+        futuresTrades: 0,
+        averageMarginUtilization: 0,
+        marginToEquityRatio: 0,
+        contractConcentrationRisk: 0
+      };
+    }
+
+    // Calculate futures-specific risk metrics
+    const totalMarginRequired = futuresTrades.reduce((sum, trade) => {
+      const contractSpec = getContractSpec(trade.currencyPair);
+      return sum + (contractSpec?.initialMargin || 0) * (trade.contractSize || 1);
+    }, 0);
+
+    const averageMarginUtilization = futuresTrades.length > 0 ? totalMarginRequired / futuresTrades.length : 0;
+
+    // Simplified margin to equity ratio (would need account balance data)
+    const marginToEquityRatio = 0; // Placeholder
+
+    // Contract concentration risk (how concentrated the portfolio is in specific contracts)
+    const contractGroups: { [symbol: string]: number } = {};
+    futuresTrades.forEach(trade => {
+      const symbol = trade.currencyPair;
+      contractGroups[symbol] = (contractGroups[symbol] || 0) + (trade.contractSize || 1);
+    });
+
+    const totalContracts = Object.values(contractGroups).reduce((sum, count) => sum + count, 0);
+    const maxContractCount = Math.max(...Object.values(contractGroups));
+    const contractConcentrationRisk = totalContracts > 0 ? (maxContractCount / totalContracts) * 100 : 0;
+
+    return {
+      ...baseRiskMetrics,
+      futuresTrades: futuresTrades.length,
+      averageMarginUtilization,
+      marginToEquityRatio,
+      contractConcentrationRisk
     };
   }
 }

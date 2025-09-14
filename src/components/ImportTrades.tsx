@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useTradeContext } from '@/contexts/TradeContext';
 import { Upload, X, CheckCircle, FileText, TrendingUp } from 'lucide-react';
 import { parseMetaTraderFile, validateMTTrades, convertMTTradeToAppTrade, ParsedMTTrade } from '@/lib/mt-parser';
+import { CURRENT_TERMINOLOGY } from '@/lib/terminologyConfig';
 
 interface ImportTradesProps {
   onClose: () => void;
@@ -294,7 +295,7 @@ const ImportTrades: React.FC<ImportTradesProps> = ({ onClose }) => {
               <div className="text-2xl font-bold text-purple-600">
                 {mtTrades.reduce((sum, trade) => sum + (trade.pips || 0), 0).toFixed(1)}
               </div>
-              <div className="text-sm text-purple-800">Total Pips</div>
+              <div className="text-sm text-purple-800">Total {CURRENT_TERMINOLOGY.priceMovementLabel}</div>
             </div>
           </div>
 
@@ -312,7 +313,7 @@ const ImportTrades: React.FC<ImportTradesProps> = ({ onClose }) => {
                       <th className="px-3 py-2 text-left font-medium text-gray-700">Volume</th>
                       <th className="px-3 py-2 text-left font-medium text-gray-700">Entry</th>
                       <th className="px-3 py-2 text-left font-medium text-gray-700">Exit</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-700">Pips</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-700">{CURRENT_TERMINOLOGY.priceMovementLabel}</th>
                       <th className="px-3 py-2 text-left font-medium text-gray-700">P&L</th>
                     </tr>
                   </thead>

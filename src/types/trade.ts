@@ -31,6 +31,13 @@ export interface Trade {
   lotSize: number; // e.g., 1.5 for 1.5 lots
   lotType: 'standard' | 'mini' | 'micro'; // 100k, 10k, 1k units
   units: number; // Actual units traded (calculated from lotSize * lotType)
+
+  // Futures Extensions (Optional - for backward compatibility)
+  contractSize?: number; // Number of futures contracts
+  tickValue?: number; // Monetary value per tick/point
+  tickSize?: number; // Minimum price movement (tick size)
+  marginRequirement?: number; // Required margin per contract
+  exchange?: string; // Futures exchange (e.g., 'CME', 'ICE', 'NYMEX')
   
   // Risk Management
   stopLoss?: number;
@@ -152,7 +159,14 @@ export interface TradeFormData {
   // Position Sizing (Forex-specific)
   lotSize: string;
   lotType: 'standard' | 'mini' | 'micro';
-  
+
+  // Futures Extensions (Optional)
+  contractSize: string;
+  tickValue: string;
+  tickSize: string;
+  marginRequirement: string;
+  exchange: string;
+
   // Risk Management
   stopLoss: string;
   takeProfit: string;

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CURRENT_TERMINOLOGY } from '../../lib/terminologyConfig';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { TradeWithStrategy } from '@/types/strategy';
@@ -328,7 +329,7 @@ const TradeDistributionAnalysis: React.FC<TradeDistributionAnalysisProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center">
             <BarChart3 className="w-5 h-5 mr-2" />
-            Currency Pair Performance
+            {CURRENT_TERMINOLOGY.instrumentLabel} Performance
           </CardTitle>
         </CardHeader>
         <CardContent>

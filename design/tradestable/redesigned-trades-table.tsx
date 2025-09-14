@@ -16,6 +16,7 @@ import {
   ArrowUpDown,
   MoreHorizontal,
 } from "lucide-react"
+import { CURRENT_TERMINOLOGY } from "../../src/lib/terminologyConfig"
 
 // Sample trade data structure
 interface Trade {
@@ -238,7 +239,7 @@ export default function RedesignedTradesTable() {
               <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   <div className="flex items-center space-x-1 cursor-pointer hover:text-gray-900 transition-colors">
-                    <span>Currency Pair</span>
+                    <span>{CURRENT_TERMINOLOGY.instrumentLabel}</span>
                     <ArrowUpDown className="h-3 w-3" />
                   </div>
                 </th>
@@ -259,7 +260,7 @@ export default function RedesignedTradesTable() {
                 </th>
                 <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   <div className="flex items-center justify-end space-x-1 cursor-pointer hover:text-gray-900 transition-colors">
-                    <span>Pips</span>
+                    <span>{CURRENT_TERMINOLOGY.priceMovementLabel}</span>
                     <ArrowUpDown className="h-3 w-3" />
                   </div>
                 </th>

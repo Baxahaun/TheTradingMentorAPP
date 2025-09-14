@@ -16,9 +16,11 @@ import { SetupClassificationPanel } from './SetupClassificationPanel';
 import { PatternRecognitionPanel } from './PatternRecognitionPanel';
 import { TagInput } from './ui/tag-input';
 import { tagService } from '../lib/tagService';
+import { CURRENT_TERMINOLOGY, getCurrentTerminology } from '../lib/terminologyConfig';
+import { FUTURES_CONTRACT_SPECS } from '../lib/futuresContracts';
 
 const tradeSchema = z.object({
-        currencyPair: z.string().min(1, 'Currency pair is required'),
+        currencyPair: z.string().min(1, `${CURRENT_TERMINOLOGY.instrumentLabel} is required`),
         date: z.string().min(1, 'Date is required'),
         timeIn: z.string().min(1, 'Time in is required'),
         timeOut: z.string().optional(),
@@ -27,7 +29,7 @@ const tradeSchema = z.object({
         entryPrice: z.string().min(1, 'Entry price is required'),
         exitPrice: z.string().optional(),
         spread: z.string().optional(),
-        lotSize: z.string().min(1, 'Lot size is required'),
+        lotSize: z.string().min(1, `${CURRENT_TERMINOLOGY.positionSizeLabel} is required`),
         lotType: z.enum(['standard', 'mini', 'micro']),
         leverage: z.string().optional(),
         commission: z.string().optional(),
@@ -46,11 +48,11 @@ const tradeSchema = z.object({
       });
 
 const quickTradeSchema = z.object({
-        currencyPair: z.string().min(1, 'Currency pair is required'),
+        currencyPair: z.string().min(1, `${CURRENT_TERMINOLOGY.instrumentLabel} is required`),
         date: z.string().min(1, 'Date is required'),
         timeIn: z.string().min(1, 'Time in is required'),
         side: z.enum(['long', 'short']),
-        lotSize: z.string().min(1, 'Lot size is required'),
+        lotSize: z.string().min(1, `${CURRENT_TERMINOLOGY.positionSizeLabel} is required`),
         lotType: z.enum(['standard', 'mini', 'micro']),
         accountCurrency: z.string().min(1, 'Account currency is required'),
         pnlAmount: z.string().optional(),
@@ -135,7 +137,7 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
           form.setValue('tags', tags);
         }, [tags, form]);
       
-        // Auto-calculate P&L from prices when in detailed mode (Forex)
+        // Auto-calculate P&L from prices when in detailed mode
         useEffect(() => {
           if (entryMode === 'detailed') {
             const [entryPrice, exitPrice, lotSize, lotType, currencyPair, side, commission, accountCurrency] = watchedValues;
@@ -159,7 +161,7 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
                 setCalculatedPnL(pnl);
                 setShowCalculatedPnL(true);
               } catch (error) {
-                console.error('Error calculating forex P&L:', error);
+                console.error('Error calculating position P&L:', error);
                 setCalculatedPnL(null);
                 setShowCalculatedPnL(false);
               }
@@ -238,7 +240,7 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
               finalPnL = calculatedPnL || undefined;
             }
       
-            // Calculate forex-specific values
+            // Calculate position-specific values
             let pips: number | undefined;
             let pipValue: number | undefined;
             let units: number | undefined;
@@ -282,6 +284,7 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
               timeIn: data.timeIn,
               timeOut: data.timeOut || undefined,
               session: data.session as 'asian' | 'european' | 'us' | 'overlap' || 'european',
+              timestamp: Date.now(), // Add missing timestamp
               side: data.side,
               entryPrice: data.entryPrice ? parseFloat(data.entryPrice) : 0,
               exitPrice: data.exitPrice ? parseFloat(data.exitPrice) : undefined,
@@ -385,7 +388,7 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
                   </div>
                 </div>
                 
-                <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                <button onClick={onClose} className="text-gray-400 hover:text-gray-600" title="Close form">
                   <X className="w-6 h-6" />
                 </button>
               </div>
@@ -402,27 +405,37 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
                       </h3>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Currency Pair */}
+                        {/* Futures Instrument */}
                         <div>
-                          <Label htmlFor="currencyPair">Currency Pair *</Label>
+                          <Label htmlFor="currencyPair">{CURRENT_TERMINOLOGY.instrumentLabel} *</Label>
                           <select
                             {...form.register('currencyPair')}
                             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                           >
-                            <option value="">Select currency pair</option>
-                            <optgroup label="Major Pairs">
-                              {CURRENCY_PAIRS.MAJOR.map(pair => (
-                                <option key={pair} value={pair}>{pair}</option>
+                            <option value="">{CURRENT_TERMINOLOGY.instrumentPlaceholder}</option>
+                            <optgroup label="Index Futures">
+                              {FUTURES_CONTRACT_SPECS.filter(spec => spec.category === 'Index').map(spec => (
+                                <option key={spec.symbol} value={spec.symbol}>{spec.symbol} - {spec.name}</option>
                               ))}
                             </optgroup>
-                            <optgroup label="Minor Pairs">
-                              {CURRENCY_PAIRS.MINOR.map(pair => (
-                                <option key={pair} value={pair}>{pair}</option>
+                            <optgroup label="Currency Futures">
+                              {FUTURES_CONTRACT_SPECS.filter(spec => spec.category === 'Currency').map(spec => (
+                                <option key={spec.symbol} value={spec.symbol}>{spec.symbol} - {spec.name}</option>
                               ))}
                             </optgroup>
-                            <optgroup label="Exotic Pairs">
-                              {CURRENCY_PAIRS.EXOTIC.map(pair => (
-                                <option key={pair} value={pair}>{pair}</option>
+                            <optgroup label="Energy Futures">
+                              {FUTURES_CONTRACT_SPECS.filter(spec => spec.category === 'Energy').map(spec => (
+                                <option key={spec.symbol} value={spec.symbol}>{spec.symbol} - {spec.name}</option>
+                              ))}
+                            </optgroup>
+                            <optgroup label="Metal Futures">
+                              {FUTURES_CONTRACT_SPECS.filter(spec => spec.category === 'Metal').map(spec => (
+                                <option key={spec.symbol} value={spec.symbol}>{spec.symbol} - {spec.name}</option>
+                              ))}
+                            </optgroup>
+                            <optgroup label="Agricultural Futures">
+                              {FUTURES_CONTRACT_SPECS.filter(spec => spec.category === 'Agricultural').map(spec => (
+                                <option key={spec.symbol} value={spec.symbol}>{spec.symbol} - {spec.name}</option>
                               ))}
                             </optgroup>
                           </select>
@@ -499,18 +512,18 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
                     <div className="space-y-4">
                       <h3 className="text-sm font-medium text-gray-900 flex items-center">
                         <DollarSign className="w-4 h-4 mr-2" />
-                        Position Sizing
+                        {CURRENT_TERMINOLOGY.positionSizeDescription.charAt(0).toUpperCase() + CURRENT_TERMINOLOGY.positionSizeDescription.slice(1)}
                       </h3>
                       
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Lot Size */}
+                        {/* Contract Size */}
                         <div>
-                          <Label htmlFor="lotSize">Lot Size *</Label>
+                          <Label htmlFor="lotSize">{CURRENT_TERMINOLOGY.positionSizeLabel} *</Label>
                           <Input
                             {...form.register('lotSize')}
                             type="number"
                             step="0.01"
-                            placeholder="0.1"
+                            placeholder={CURRENT_TERMINOLOGY.positionSizePlaceholder.replace('Enter ', '').replace(' (e.g., 1.5)', '')}
                             className="mt-1"
                           />
                           {form.formState.errors.lotSize && (
@@ -518,9 +531,9 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
                           )}
                         </div>
 
-                        {/* Lot Type */}
+                        {/* Contract Type */}
                         <div>
-                          <Label htmlFor="lotType">Lot Type *</Label>
+                          <Label htmlFor="lotType">{CURRENT_TERMINOLOGY.positionSizeTypeLabel} *</Label>
                           <select
                             {...form.register('lotType')}
                             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
@@ -548,7 +561,7 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
                     <div className="space-y-4">
                       <h3 className="text-sm font-medium text-gray-900 flex items-center">
                         <Calculator className="w-4 h-4 mr-2" />
-                        Pricing & Execution
+                        {CURRENT_TERMINOLOGY.priceMovementDescription.charAt(0).toUpperCase() + CURRENT_TERMINOLOGY.priceMovementDescription.slice(1)} & Execution
                       </h3>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -581,7 +594,7 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
 
                         {/* Spread */}
                         <div>
-                          <Label htmlFor="spread">Spread (pips)</Label>
+                          <Label htmlFor="spread">Spread ({CURRENT_TERMINOLOGY.priceMovementUnit})</Label>
                           <Input
                             {...form.register('spread')}
                             type="number"
@@ -649,9 +662,9 @@ const AddTrade: React.FC<AddTradeProps> = ({ onClose }) => {
                           />
                         </div>
 
-                        {/* Swap */}
+                        {/* Carrying Cost */}
                         <div>
-                          <Label htmlFor="swap">Swap/Rollover</Label>
+                          <Label htmlFor="swap">{CURRENT_TERMINOLOGY.swapLabel}</Label>
                           <Input
                             {...form.register('swap')}
                             type="number"

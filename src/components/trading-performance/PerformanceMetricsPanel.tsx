@@ -4,6 +4,7 @@ import { Badge } from '../ui/badge';
 import { TrendingUp, TrendingDown, Activity, Target, DollarSign, BarChart3 } from 'lucide-react';
 import { PerformanceMetrics, PerformanceMetricsPanelProps } from '../../types/tradingPerformance';
 import { formatChartValue } from '../../utils/performanceChartUtils';
+import { CURRENT_TERMINOLOGY } from '../../lib/terminologyConfig';
 
 /**
  * Performance Metrics Panel Component
@@ -98,7 +99,7 @@ const PerformanceMetricsPanel: React.FC<PerformanceMetricsPanelProps> = ({
       key: 'sharpeRatio'
     },
     {
-      title: 'Total Pips',
+      title: `Total ${CURRENT_TERMINOLOGY.priceMovementLabel}`,
       value: metrics.totalPips ? metrics.totalPips.toFixed(1) : '0.0',
       subtitle: `R:R ${metrics.averageRMultiple ? metrics.averageRMultiple.toFixed(2) : 'N/A'}`,
       color: getMetricColor('totalPips', metrics.totalPips || 0),

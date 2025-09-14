@@ -10,6 +10,7 @@ import {
   formatChartValue,
   chartColorSchemes
 } from '../../utils/performanceChartUtils';
+import { CURRENT_TERMINOLOGY } from '../../lib/terminologyConfig';
 
 /**
  * Performance Chart Panel Component
@@ -139,7 +140,7 @@ const PerformanceChartPanel: React.FC<ExtendedPerformanceChartPanelProps> = ({
             Performance Chart
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Cumulative P&L over time ({period})
+            Cumulative {CURRENT_TERMINOLOGY.profitLossLabel} over time ({period})
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -156,7 +157,7 @@ const PerformanceChartPanel: React.FC<ExtendedPerformanceChartPanelProps> = ({
           <ChartContainer
             config={{
               pnl: {
-                label: "P&L",
+                label: CURRENT_TERMINOLOGY.profitLossLabel,
                 color: "hsl(var(--chart-1))",
               },
             }}
@@ -219,14 +220,14 @@ const PerformanceChartPanel: React.FC<ExtendedPerformanceChartPanelProps> = ({
 
                           <div className="space-y-2 mt-2">
                             <div className="flex justify-between gap-4">
-                              <span className="text-sm text-muted-foreground">Daily P&L:</span>
+                              <span className="text-sm text-muted-foreground">Daily {CURRENT_TERMINOLOGY.profitLossLabel}:</span>
                               <span className={`text-sm font-medium ${data.value >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                 {formatChartValue(data.value || 0, 'currency')}
                               </span>
                             </div>
 
                             <div className="flex justify-between gap-4">
-                              <span className="text-sm text-muted-foreground">Cumulative P&L:</span>
+                              <span className="text-sm text-muted-foreground">Cumulative {CURRENT_TERMINOLOGY.profitLossLabel}:</span>
                               <span className={`text-sm font-medium ${data.cumulativePnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                 {formatChartValue(data.cumulativePnL || 0, 'currency')}
                               </span>
@@ -250,7 +251,7 @@ const PerformanceChartPanel: React.FC<ExtendedPerformanceChartPanelProps> = ({
 
                             {data.pipMovement !== undefined && data.pipMovement !== 0 && (
                               <div className="flex justify-between gap-4">
-                                <span className="text-sm text-muted-foreground">Pip Movement:</span>
+                                <span className="text-sm text-muted-foreground">{CURRENT_TERMINOLOGY.priceMovementLabel} Movement:</span>
                                 <span className="text-sm font-medium">
                                   {formatChartValue(data.pipMovement, 'pips')}
                                 </span>

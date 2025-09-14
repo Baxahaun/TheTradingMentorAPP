@@ -6,6 +6,7 @@
 import { TradeReviewService } from './tradeReviewService';
 import { ValidationResult, ValidationError } from '../types/tradeReview';
 import { EnhancedTrade } from '../types/tradeReview';
+import { CURRENT_TERMINOLOGY } from './terminologyConfig';
 
 export class TradeFormValidation {
   private static reviewService = TradeReviewService.getInstance();
@@ -26,14 +27,14 @@ export class TradeFormValidation {
           errors.push({
             field: fieldName,
             code: 'REQUIRED_FIELD_MISSING',
-            message: 'Currency pair is required',
+            message: `${CURRENT_TERMINOLOGY.instrumentLabel} is required`,
             severity: 'error'
           });
-        } else if (!/^[A-Z]{3}\/[A-Z]{3}$/.test(value)) {
+        } else if (!/^[A-Z]{3}\/[A-Z]{3}$/.test(value) && !/^[A-Z]+$/.test(value)) {
           errors.push({
             field: fieldName,
             code: 'INVALID_FORMAT',
-            message: 'Currency pair must be in format XXX/YYY (e.g., EUR/USD)',
+            message: `${CURRENT_TERMINOLOGY.instrumentLabel} must be in format XXX/YYY (e.g., EUR/USD) or a valid futures symbol`,
             severity: 'error'
           });
         }
@@ -61,7 +62,7 @@ export class TradeFormValidation {
           errors.push({
             field: fieldName,
             code: 'REQUIRED_FIELD_MISSING',
-            message: 'Lot size is required',
+            message: `${CURRENT_TERMINOLOGY.positionSizeLabel} is required`,
             severity: 'error'
           });
         } else {
@@ -70,7 +71,7 @@ export class TradeFormValidation {
             errors.push({
               field: fieldName,
               code: 'INVALID_LOT_SIZE',
-              message: 'Lot size must be a positive number',
+              message: `${CURRENT_TERMINOLOGY.positionSizeLabel} must be a positive number`,
               severity: 'error'
             });
           }
@@ -140,7 +141,7 @@ export class TradeFormValidation {
           errors.push({
             field: fieldName,
             code: 'INVALID_LOT_TYPE',
-            message: 'Lot type must be standard, mini, or micro',
+            message: `${CURRENT_TERMINOLOGY.positionSizeTypeLabel} must be standard, mini, or micro`,
             severity: 'error'
           });
         }

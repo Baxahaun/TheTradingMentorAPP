@@ -20,6 +20,7 @@ import { TagInput } from './ui/tag-input';
 import { tagService } from '../lib/tagService';
 import { useTagValidation } from '../hooks/useTagValidation';
 import { toast } from '../hooks/use-toast';
+import { CURRENT_TERMINOLOGY } from '../lib/terminologyConfig';
 
 interface EditTradeModalProps {
   trade: Trade | null;
@@ -125,7 +126,7 @@ const EditTradeModal: React.FC<EditTradeModalProps> = ({
     const tagValidation = validateTags(tags);
     if (!tagValidation.isValid) {
       toast({
-        title: "Tag Validation Error",
+        title: `Tag Validation Error`,
         description: tagValidation.errors.join(', '),
         variant: "destructive",
       });
@@ -233,7 +234,7 @@ const EditTradeModal: React.FC<EditTradeModalProps> = ({
       }
       
       toast({
-        title: "Trade Updated Successfully! ✅",
+        title: `${CURRENT_TERMINOLOGY.instrumentLabel} Trade Updated Successfully! ✅`,
         description,
       });
       
@@ -253,7 +254,7 @@ const EditTradeModal: React.FC<EditTradeModalProps> = ({
       }
       
       toast({
-        title: "Error",
+        title: "Trade Update Error",
         description: errorMessage,
         variant: "destructive",
       });
@@ -272,8 +273,8 @@ const EditTradeModal: React.FC<EditTradeModalProps> = ({
     updateTrade(trade!.id, updatedTrade);
     
     toast({
-      title: "Partial Close Added",
-      description: `${partialClose.lotSize} lots closed at ${partialClose.price}`,
+      title: "Partial Position Close Added",
+      description: `${partialClose.lotSize} ${CURRENT_TERMINOLOGY.positionSizeLabel.toLowerCase()} closed at ${partialClose.price}`,
     });
   };
 
@@ -297,7 +298,7 @@ const EditTradeModal: React.FC<EditTradeModalProps> = ({
           {/* Basic Info */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="currencyPair">Currency Pair</Label>
+              <Label htmlFor="currencyPair">{CURRENT_TERMINOLOGY.instrumentLabel}</Label>
               <Input
                 id="currencyPair"
                 value={formData.currencyPair || formData.symbol || ''}
@@ -374,7 +375,7 @@ const EditTradeModal: React.FC<EditTradeModalProps> = ({
               />
             </div>
             <div>
-              <Label htmlFor="lotSize">Lot Size</Label>
+              <Label htmlFor="lotSize">{CURRENT_TERMINOLOGY.positionSizeLabel}</Label>
               <Input
                 id="lotSize"
                 type="number"

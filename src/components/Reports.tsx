@@ -7,6 +7,7 @@ import MetricCard from './MetricCard';
 import { ChartContainer, ChartTooltip } from '@/components/ui/chart';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
 import EnhancedReportTabs from './EnhancedReportTabs';
+import { CURRENT_TERMINOLOGY } from '@/lib/terminologyConfig';
 
 const Reports: React.FC = () => {
         const { trades } = useTradeContext();
@@ -610,7 +611,7 @@ const Reports: React.FC = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="w-5 h-5" />
-                    Currency Pair Performance
+                    {CURRENT_TERMINOLOGY.instrumentLabel} Performance
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6" style={{ maxWidth: '100%', overflow: 'hidden' }}>
@@ -698,7 +699,7 @@ const Reports: React.FC = () => {
                               {pair.totalPnL >= 0 ? '+' : ''}${pair.totalPnL.toFixed(2)}
                             </p>
                             <p className="text-sm text-gray-500">
-                              {pair.winRate.toFixed(1)}% • {pair.avgPips > 0 ? '+' : ''}{pair.avgPips.toFixed(1)} pips
+                              {pair.winRate.toFixed(1)}% • {pair.avgPips > 0 ? '+' : ''}{pair.avgPips.toFixed(1)} {CURRENT_TERMINOLOGY.priceMovementUnit}
                             </p>
                           </div>
                         </div>
@@ -751,7 +752,7 @@ const Reports: React.FC = () => {
                                     </div>
                                     <div className="text-right">
                                       <p className="font-bold text-green-600">+${pair.totalPnL.toFixed(2)}</p>
-                                      <p className="text-sm text-gray-600">+{pair.totalPips.toFixed(1)} pips</p>
+                                      <p className="text-sm text-gray-600">+{pair.totalPips.toFixed(1)} {CURRENT_TERMINOLOGY.priceMovementUnit}</p>
                                     </div>
                                   </div>
                                 ))}
@@ -777,7 +778,7 @@ const Reports: React.FC = () => {
                                     </div>
                                     <div className="text-right">
                                       <p className="font-bold text-red-600">${pair.totalPnL.toFixed(2)}</p>
-                                      <p className="text-sm text-gray-600">{pair.totalPips.toFixed(1)} pips</p>
+                                      <p className="text-sm text-gray-600">{pair.totalPips.toFixed(1)} {CURRENT_TERMINOLOGY.priceMovementUnit}</p>
                                     </div>
                                   </div>
                                 ))}
@@ -796,7 +797,7 @@ const Reports: React.FC = () => {
                           <table className="w-full border-collapse border border-gray-200">
                             <thead>
                               <tr className="bg-gray-50">
-                                <th className="border border-gray-200 px-4 py-2 text-left">Currency Pair</th>
+                                <th className="border border-gray-200 px-4 py-2 text-left">{CURRENT_TERMINOLOGY.instrumentLabel}</th>
                                 <th className="border border-gray-200 px-4 py-2 text-center">Avg Win</th>
                                 <th className="border border-gray-200 px-4 py-2 text-center">Avg Loss</th>
                                 <th className="border border-gray-200 px-4 py-2 text-center">Risk/Reward</th>
@@ -930,7 +931,7 @@ const Reports: React.FC = () => {
                           <table className="w-full border-collapse border border-gray-200">
                             <thead>
                               <tr className="bg-gray-50">
-                                <th className="border border-gray-200 px-4 py-2 text-left">Currency Pair</th>
+                                <th className="border border-gray-200 px-4 py-2 text-left">{CURRENT_TERMINOLOGY.instrumentLabel}</th>
                                 <th className="border border-gray-200 px-4 py-2 text-center">Win Rate</th>
                                 <th className="border border-gray-200 px-4 py-2 text-center">Wins</th>
                                 <th className="border border-gray-200 px-4 py-2 text-center">Losses</th>

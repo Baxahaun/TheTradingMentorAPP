@@ -5,6 +5,7 @@
 
 import { Trade } from '../types/trade';
 import { EnhancedTrade, TradeReviewData, TradeNotes, ValidationError, ValidationResult } from '../types/tradeReview';
+import { CURRENT_TERMINOLOGY } from './terminologyConfig';
 
 export interface ValidationRule {
   field: string;
@@ -44,7 +45,7 @@ const TRADE_VALIDATION_RULES: ValidationRule[] = [
   {
     field: 'currencyPair',
     type: 'required',
-    message: 'Currency pair is required',
+    message: `${CURRENT_TERMINOLOGY.instrumentLabel} is required`,
     severity: 'error'
   },
   {
@@ -68,7 +69,7 @@ const TRADE_VALIDATION_RULES: ValidationRule[] = [
   {
     field: 'lotSize',
     type: 'required',
-    message: 'Lot size is required',
+    message: `${CURRENT_TERMINOLOGY.positionSizeLabel} is required`,
     severity: 'error'
   },
   {
@@ -96,7 +97,7 @@ const TRADE_VALIDATION_RULES: ValidationRule[] = [
   {
     field: 'lotSize',
     type: 'type',
-    message: 'Lot size must be a positive number',
+    message: `${CURRENT_TERMINOLOGY.positionSizeLabel} must be a positive number`,
     severity: 'error',
     validator: (value) => typeof value === 'number' && value > 0
   },
@@ -112,9 +113,9 @@ const TRADE_VALIDATION_RULES: ValidationRule[] = [
   {
     field: 'currencyPair',
     type: 'format',
-    message: 'Currency pair must be in format XXX/YYY',
+    message: `${CURRENT_TERMINOLOGY.instrumentLabel} must be in format XXX/YYY or a valid futures symbol`,
     severity: 'error',
-    validator: (value) => typeof value === 'string' && /^[A-Z]{3}\/[A-Z]{3}$/.test(value)
+    validator: (value) => typeof value === 'string' && (/^[A-Z]{3}\/[A-Z]{3}$/.test(value) || /^[A-Z]+$/.test(value))
   },
   {
     field: 'date',
@@ -144,7 +145,7 @@ const TRADE_VALIDATION_RULES: ValidationRule[] = [
   {
     field: 'lotType',
     type: 'format',
-    message: 'Lot type must be "standard", "mini", or "micro"',
+    message: `${CURRENT_TERMINOLOGY.positionSizeTypeLabel} must be "standard", "mini", or "micro"`,
     severity: 'error',
     validator: (value) => ['standard', 'mini', 'micro'].includes(value)
   },

@@ -6,6 +6,7 @@ import EditTradeModal from './EditTradeModal';
 import { Upload, Filter, X, ChevronDown, Search, Columns3, Edit, Trash2, TrendingUp, TrendingDown, ArrowUpDown, MoreHorizontal } from 'lucide-react';
 import { useTradeContext } from '../contexts/TradeContext';
 import { Trade } from '../types/trade';
+import { CURRENT_TERMINOLOGY } from '../lib/terminologyConfig';
 
 const TradeLog: React.FC = () => {
   const navigate = useNavigate();
@@ -280,7 +281,7 @@ const TradeLog: React.FC = () => {
               <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   <div className="flex items-center space-x-1 cursor-pointer hover:text-gray-900 transition-colors">
-                    <span>Currency Pair</span>
+                    <span>{CURRENT_TERMINOLOGY.instrumentLabel}</span>
                     <ArrowUpDown className="h-3 w-3" />
                   </div>
                 </th>
@@ -301,7 +302,7 @@ const TradeLog: React.FC = () => {
                 </th>
                 <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   <div className="flex items-center justify-end space-x-1 cursor-pointer hover:text-gray-900 transition-colors">
-                    <span>Pips</span>
+                    <span>{CURRENT_TERMINOLOGY.priceMovementLabel}</span>
                     <ArrowUpDown className="h-3 w-3" />
                   </div>
                 </th>

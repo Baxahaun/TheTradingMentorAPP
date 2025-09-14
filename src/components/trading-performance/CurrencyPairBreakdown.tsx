@@ -4,12 +4,13 @@ import { Badge } from '../ui/badge';
 import { TrendingUp, TrendingDown, BarChart3, Plus, Minus } from 'lucide-react';
 import { formatChartValue } from '../../utils/performanceChartUtils';
 import { CurrencyPairMetrics } from '../../types/tradingPerformance';
+import { CURRENT_TERMINOLOGY } from '../../lib/terminologyConfig';
 
 /**
- * Currency Pair Breakdown Component
+ * Instrument Breakdown Component
  *
- * Displays top and worst performing currency pairs with key metrics
- * and click-to-filter functionality for forex trading analysis.
+ * Displays top and worst performing instruments with key metrics
+ * and click-to-filter functionality for trading analysis.
  */
 interface ExtendedCurrencyPairBreakdownProps {
   data: CurrencyPairMetrics[];
@@ -66,13 +67,13 @@ const CurrencyPairBreakdown: React.FC<ExtendedCurrencyPairBreakdownProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BarChart3 className="h-5 w-5" />
-            Currency Pair Analysis
+            {CURRENT_TERMINOLOGY.instrumentLabel} Analysis
           </CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center h-32">
           <div className="text-center text-muted-foreground">
             <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No currency pair data available</p>
+            <p className="text-sm">No {CURRENT_TERMINOLOGY.instrumentLabel.toLowerCase()} data available</p>
             <p className="text-xs text-gray-500 mt-1">Complete some trades to see analysis</p>
           </div>
         </CardContent>
@@ -179,7 +180,7 @@ const CurrencyPairBreakdown: React.FC<ExtendedCurrencyPairBreakdownProps> = ({
         <div className="space-y-1">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
-            Currency Pair Analysis
+            {CURRENT_TERMINOLOGY.instrumentLabel} Analysis
           </CardTitle>
           <p className="text-xs text-muted-foreground">
             Top & worst performing pairs

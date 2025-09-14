@@ -1,58 +1,116 @@
-# Technology Steering: Zella Trade Scribe
+# Technology Stack
 
-## 1. Project Type
+## Project Type
+A specialized web application for futures trading journaling, prop firm challenge management, and real-time risk monitoring. The platform serves as a comprehensive trading analytics and compliance tool for funded trading program participants.
 
-A specialized web application for forex trading journaling, analytics, and risk management.
+## Core Technologies
 
-## 2. Core Technologies
+### Primary Language(s)
+- **Language**: TypeScript 5.0+
+- **Runtime**: Node.js 18+ (for development and build tools)
+- **Language-specific tools**: npm for package management, Vite for build tooling
 
-- **Primary Language**: TypeScript
-- **Frontend Framework**: React 18
-- **Build Tool**: Vite
-- **UI Components**: shadcn/ui, based on Radix UI
-- **Styling**: Tailwind CSS
-- **Data Visualization**: Recharts
-- **State Management**: React Context API, TanStack React Query
-- **Forms & Validation**: React Hook Form, Zod
-- **Routing**: React Router DOM
+### Key Dependencies/Libraries
+- **React 18**: Frontend framework with concurrent features and hooks
+- **Vite**: Fast build tool and development server
+- **Tailwind CSS**: Utility-first CSS framework for styling
+- **shadcn/ui**: High-quality, accessible UI component library
+- **Recharts**: Data visualization and charting library
+- **React Hook Form + Zod**: Form handling and validation
+- **React Router DOM**: Client-side routing
+- **TanStack React Query**: Server state management and caching
+- **date-fns**: Date manipulation and formatting
+- **WebSocket API**: Real-time market data and risk updates
 
-## 3. Application Architecture
+### Application Architecture
+**Component-Based Architecture**: Modular React components with clear separation of concerns
+- **Presentation Layer**: React components for UI rendering
+- **Business Logic Layer**: Custom hooks and services for trading logic
+- **Data Layer**: Context providers and local storage management
+- **Integration Layer**: External API services for market data and prop firm rules
 
-- **Client-Server Model**: A client-side rendered React application that consumes external APIs for market data.
-- **Component-Based**: Built with a modular architecture using reusable React components.
-- **Service Layer**: Business logic is encapsulated in services (e.g., `JournalDataService`, `JournalExportService`) for separation of concerns.
+### Data Storage
+- **Primary storage**: Browser localStorage for offline-first functionality
+- **Caching**: In-memory caching for market data and challenge rules
+- **Data formats**: JSON for trade data, challenge configurations, and user preferences
+- **Backup**: Firebase Firestore (configured, ready for cloud sync)
 
-## 4. Data Storage
+### External Integrations
+- **Futures Market Data APIs**: Alpha Vantage, Financial Modeling Prep, or specialized futures data providers
+- **Prop Firm APIs**: Integration points for challenge rule validation and progress tracking
+- **Protocols**: HTTP/REST for market data, WebSocket for real-time updates
+- **Authentication**: Firebase Auth for user management and data sync
 
-- **Primary Storage**: Browser `localStorage` for all user data, enabling offline-first functionality without a required backend.
-- **Data Caching**: In-memory caching for external API responses to manage rate limits and improve performance.
+### Monitoring & Dashboard Technologies
+- **Dashboard Framework**: React with TypeScript
+- **Real-time Communication**: WebSocket for live market data and risk alerts
+- **Visualization Libraries**: Recharts for performance charts, custom components for risk dashboards
+- **State Management**: React Context API for global state, TanStack Query for server state
 
-## 5. External Integrations
+## Development Environment
 
-- **Market Data APIs**: Integrates with Alpha Vantage and Financial Modeling Prep for economic calendar data, with a fallback strategy for reliability.
-- **Backend**: Firebase is configured and ready for future integration to enable cloud data persistence and synchronization.
+### Build & Development Tools
+- **Build System**: Vite with TypeScript compilation
+- **Package Management**: npm with package-lock.json
+- **Development workflow**: Hot module replacement with Vite dev server
 
-## 6. Development Environment
+### Code Quality Tools
+- **Static Analysis**: ESLint with TypeScript rules
+- **Formatting**: Prettier (recommended)
+- **Testing Framework**: Vitest for unit testing, React Testing Library for component testing
+- **Documentation**: TypeScript interfaces as documentation, JSDoc for complex functions
 
-- **Package Management**: npm
-- **Code Quality**: ESLint for linting, TypeScript for static type-checking.
-- **Testing**: Vitest for unit and integration testing, configured with JSDOM.
-- **Version Control**: Git
+### Version Control & Collaboration
+- **VCS**: Git with GitHub
+- **Branching Strategy**: Feature branch workflow
+- **Code Review Process**: Pull request reviews with automated checks
 
-## 7. Deployment & Distribution
+### Dashboard Development
+- **Live Reload**: Vite HMR for instant updates
+- **Port Management**: Configurable dev server ports
+- **Multi-Instance Support**: Multiple browser tabs for testing different challenge scenarios
 
-- **Target Platform**: Web browsers (desktop and mobile).
-- **Distribution**: Deployed as a static site, likely via a service like Netlify or Vercel.
+## Deployment & Distribution
+- **Target Platform(s)**: Web browsers (desktop and mobile responsive)
+- **Distribution Method**: Static site deployment via Netlify/Vercel
+- **Installation Requirements**: Modern web browser with JavaScript enabled
+- **Update Mechanism**: Automatic deployment on git push to main branch
 
-## 8. Technical Constraints & Known Limitations
+## Technical Requirements & Constraints
 
-- **Data Persistence**: Currently limited to the user's browser; data is not synced across devices.
-- **API Rate Limits**: Relies on free-tier external APIs, which have usage restrictions.
-- **Offline Support**: While core functionality works offline, market data integration requires an internet connection.
+### Performance Requirements
+- **Response Time**: Risk calculations must complete within 100ms
+- **Market Data Updates**: Real-time price updates within 500ms
+- **Page Load**: Initial load under 2 seconds on 3G connection
+- **Memory Usage**: Efficient handling of large trade datasets (10,000+ trades)
 
-## 9. Key Technical Decisions
+### Compatibility Requirements
+- **Platform Support**: Chrome 90+, Firefox 88+, Safari 14+, Edge 90+
+- **Dependency Versions**: React 18+, TypeScript 5.0+, Node.js 18+
+- **Standards Compliance**: WCAG 2.1 AA accessibility standards
 
-- **Vite over Create React App**: Chosen for its superior development experience and performance.
-- **shadcn/ui for Components**: Selected for its high-quality, accessible, and customizable components that accelerate UI development.
-- **TypeScript for Type Safety**: Adopted to improve code quality and maintainability, especially for a data-intensive application.
-- **localStorage for Initial Storage**: Used to deliver a functional product quickly without the immediate need for a complex backend infrastructure.
+### Security & Compliance
+- **Security Requirements**: Client-side data encryption, secure API communication
+- **Compliance Standards**: GDPR compliance for user data, financial data protection
+- **Threat Model**: Protection against XSS, data tampering, and unauthorized access
+
+### Scalability & Reliability
+- **Expected Load**: 1,000+ concurrent users, 10,000+ trades per user
+- **Availability Requirements**: 99.5% uptime, graceful degradation when offline
+- **Growth Projections**: Support for multiple prop firm integrations and advanced analytics
+
+## Technical Decisions & Rationale
+
+### Decision Log
+1. **React 18 over Vue/Angular**: Better ecosystem for financial applications, strong TypeScript support, concurrent features for real-time updates
+2. **localStorage over Database**: Enables offline-first functionality, reduces infrastructure complexity, allows immediate deployment
+3. **Vite over Create React App**: Superior performance, faster builds, better TypeScript integration
+4. **shadcn/ui over Material-UI**: More customizable, better accessibility, lighter weight for financial data visualization
+5. **WebSocket for Real-time Data**: Essential for live risk monitoring and market data updates
+6. **TypeScript over JavaScript**: Critical for financial calculations accuracy and maintainability
+
+## Known Limitations
+- **Data Persistence**: Currently limited to browser storage, no cross-device sync without Firebase
+- **API Rate Limits**: Dependent on free-tier external APIs for market data
+- **Offline Functionality**: Core journaling works offline, but real-time features require internet
+- **Prop Firm Integration**: Limited to manual rule configuration until official APIs are available

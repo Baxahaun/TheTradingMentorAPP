@@ -10,6 +10,7 @@ import TradingViewChart from '../trade-review/TradingViewChart';
 import { Button } from '../ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { BarChart3, Settings, Eye, EyeOff } from 'lucide-react';
+import { CURRENT_TERMINOLOGY } from '../../lib/terminologyConfig';
 
 interface TradeChartProps {
   trade: Trade;
@@ -189,7 +190,7 @@ const TradeChart: React.FC<TradeChartProps> = ({
           
           {trade.pips && (
             <div>
-              <span className="text-gray-500">Pips:</span>
+              <span className="text-gray-500">{CURRENT_TERMINOLOGY.priceMovementLabel}:</span>
               <div className={`font-semibold ${
                 trade.pips > 0 ? 'text-green-600' : 'text-red-600'
               }`}>
