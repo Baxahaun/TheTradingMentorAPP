@@ -12,7 +12,8 @@ A modern, feature-rich trading journal application built with React, TypeScript,
 - **Risk Management**: R-multiple calculation and risk tracking
 
 ### 📖 Journal & Documentation
-- **Daily Journal**: Record thoughts, market observations, and lessons learned
+- **Daily Journal Redesign**: Calendar-based journaling with week navigation, templates, and trade integration
+- **Daily Journal (Legacy)**: Record thoughts, market observations, and lessons learned
 - **Trading Playbooks**: Create and manage trading strategies and setups
 - **Trade Notes**: Detailed notes for each trade including emotions and market conditions
 

@@ -4,7 +4,7 @@ import DashboardWidget from './DashboardWidget';
 import { AVAILABLE_WIDGETS } from '../config/dashboardConfig';
 import EditTradeModal from './EditTradeModal';
 import TradeDetailModal from './TradeDetailModal';
-import { Filter, X, ChevronDown, Search, Edit, Trash2, TrendingUp, TrendingDown, ArrowUpDown, MoreHorizontal, Hash, CheckSquare, Square, Tags, Share2, Copy } from 'lucide-react';
+import { Filter, X, ChevronDown, Search, Edit, Trash2, TrendingUp, TrendingDown, ArrowUpDown, MoreHorizontal, Hash, CheckSquare, Square, Tags, Share2, Copy, FileText } from 'lucide-react';
 import { useTradeContext } from '../contexts/TradeContext';
 import { TagDisplay } from './ui/tag-display';
 import { TagFilter } from './ui/tag-filter';
@@ -17,9 +17,13 @@ import { cn } from '../lib/utils';
 import { useTagFilterUrlState, createShareableUrl } from '../hooks/useUrlState';
 import { NavigationContext } from '../types/navigation';
 import { CURRENT_TERMINOLOGY } from '../lib/terminologyConfig';
+import { tradeLogIntegrationService } from '../services/TradeLogIntegration';
+import { TradeLogIntegrationData } from '../types/dailyJournal';
+import { useAuth } from '../contexts/AuthContext';
 
 const TradeLog: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { trades, deleteTrade, updateTrade } = useTradeContext();
   const [editingTradeId, setEditingTradeId] = useState<string | null>(null);
   const [viewingTradeId, setViewingTradeId] = useState<string | null>(null);
@@ -79,6 +83,9 @@ const TradeLog: React.FC = () => {
   // Dropdown ref for click outside handling
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Trade-Journal integration state
+  const [tradeIntegrationData, setTradeIntegrationData] = useState<Map<string, TradeLogIntegrationData>>(new Map());
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -92,6 +99,28 @@ const TradeLog: React.FC = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  // Load trade-journal integration data
+  useEffect(() => {
+    const loadIntegrationData = async () => {
+      if (!user) return;
+
+      const newIntegrationData = new Map<string, TradeLogIntegrationData>();
+
+      for (const trade of trades) {
+        try {
+          const integrationData = await tradeLogIntegrationService.getTradeIntegrationData(user.uid, trade.id);
+          newIntegrationData.set(trade.id, integrationData);
+        } catch (error) {
+          console.warn(`Failed to load integration data for trade ${trade.id}:`, error);
+        }
+      }
+
+      setTradeIntegrationData(newIntegrationData);
+    };
+
+    loadIntegrationData();
+  }, [trades, user]);
   
   // Get available tags with counts
   const availableTags = useMemo(() => {
@@ -257,13 +286,38 @@ const TradeLog: React.FC = () => {
       breadcrumb: ['Dashboard', 'Trade List'],
       timestamp: Date.now()
     };
-    
+
     // Set navigation context and navigate to trade review
     import('../lib/navigationContextService').then(({ default: navigationContextService }) => {
       navigationContextService.setContext(tradeId, navigationContext);
       // Navigate to trade review within the sidebar layout
       navigate(`/trade/${tradeId}`);
     });
+  };
+
+  const handleViewNotes = async (tradeId: string) => {
+    if (!user) return;
+
+    try {
+      // Navigate to Daily Journal using the integration service
+      await tradeLogIntegrationService.navigateToJournalFromTrade(
+        user.uid,
+        tradeId,
+        (navigationState) => {
+          // Navigate to the Daily Journal page with the selected state
+          navigate('/daily-journal', {
+            state: {
+              selectedDate: navigationState.selectedDate,
+              selectedTradeId: navigationState.selectedTradeId,
+              entryType: navigationState.entryType
+            }
+          });
+        }
+      );
+    } catch (error) {
+      console.error('Error navigating to journal notes:', error);
+      // Could show a toast notification here
+    }
   };
 
   // Multi-select handlers
@@ -889,6 +943,19 @@ const TradeLog: React.FC = () => {
                   {/* Actions */}
                   <td className="px-6 py-4 whitespace-nowrap text-center">
                     <div className="flex items-center justify-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      {/* View Notes Button - Only show if trade has journal notes */}
+                      {tradeIntegrationData.get(trade.id)?.hasJournalNotes && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewNotes(trade.id);
+                          }}
+                          className="h-8 w-8 p-0 hover:bg-purple-100 hover:text-purple-600 transition-colors rounded-md flex items-center justify-center"
+                          title={`View journal notes (${tradeIntegrationData.get(trade.id)?.noteCount || 0} entries)`}
+                        >
+                          <FileText className="h-4 w-4" />
+                        </button>
+                      )}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();

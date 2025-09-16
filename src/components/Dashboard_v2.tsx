@@ -9,6 +9,7 @@ import { DEFAULT_MAIN_WIDGETS, getAvailableWidgets } from '../lib/widgetRegistry
 import { dashboardService } from '../lib/dashboardService';
 import WidgetWrapper from './ui/WidgetWrapper';
 import EmptyWidgetSlot from './ui/EmptyWidgetSlot';
+import DashboardEmptyState from './ui/DashboardEmptyState';
 import { useDashboardConfig } from '../hooks/useDashboardConfig';
 import DashboardWidget from './DashboardWidget';
 
@@ -164,6 +165,7 @@ const DashboardV2 = () => {
   }, [trades]);
 
   const availableWidgets = getAvailableWidgets(mainWidgets.filter((w): w is string => w !== null));
+  const isGridEmpty = mainWidgets.every(w => w === null);
 
   return (
     <>
@@ -193,34 +195,43 @@ const DashboardV2 = () => {
 
         {/* Static 1x2 Main Grid */}
         {!isLoadingLayout && (
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="grid grid-cols-2 gap-4 h-[500px]">
-              {mainWidgets.map((widgetId, index) => (
-                <div key={index} className="h-full min-h-0">
-                  {widgetId ? (
-                    <WidgetWrapper
-                      widgetId={widgetId}
-                      size={{ w: 6, h: 4 }}
-                      onRemove={removeWidget}
-                      metrics={metrics}
-                      trades={trades}
-                      handleTradeClick={(tradeId: string) => {
-                        const trade = trades.find(t => t.id === tradeId);
-                        if (trade) handleTradeClick(trade);
-                      }}
-                      onDateClick={handleDateClick}
-                      onTradeClick={handleTradeClickFromCalendar}
-                      onJournalClick={handleJournalClickFromCalendar}
-                    />
-                  ) : (
-                    <EmptyWidgetSlot
-                      onAddWidget={(newWidgetId) => addWidgetToSlot(newWidgetId, index)}
-                      availableWidgets={availableWidgets}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
+          <div className="bg-white rounded-lg shadow-sm p-4 min-h-[500px]">
+            {isGridEmpty ? (
+              <DashboardEmptyState onAddWidget={() => {
+                // Add the first available widget to the first slot
+                if (availableWidgets.length > 0) {
+                  addWidgetToSlot(availableWidgets[0].id, 0);
+                }
+              }} />
+            ) : (
+              <div className="grid grid-cols-2 gap-4 h-[500px]">
+                {mainWidgets.map((widgetId, index) => (
+                  <div key={index} className="h-full min-h-0">
+                    {widgetId ? (
+                      <WidgetWrapper
+                        widgetId={widgetId}
+                        size={{ w: 6, h: 4 }}
+                        onRemove={removeWidget}
+                        metrics={metrics}
+                        trades={trades}
+                        handleTradeClick={(tradeId: string) => {
+                          const trade = trades.find(t => t.id === tradeId);
+                          if (trade) handleTradeClick(trade);
+                        }}
+                        onDateClick={handleDateClick}
+                        onTradeClick={handleTradeClickFromCalendar}
+                        onJournalClick={handleJournalClickFromCalendar}
+                      />
+                    ) : (
+                      <EmptyWidgetSlot
+                        onAddWidget={(newWidgetId) => addWidgetToSlot(newWidgetId, index)}
+                        availableWidgets={availableWidgets}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

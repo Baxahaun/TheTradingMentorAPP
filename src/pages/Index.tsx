@@ -5,6 +5,7 @@ import DashboardV2 from '../components/Dashboard_v2';
 import AddTrade from '../components/AddTrade';
 import TradeLog from '../components/TradeLog';
 import JournalPage from './JournalPage';
+import { DailyJournalRedesign } from '../components/journal/daily-journal/DailyJournalRedesign';
 import Playbooks from '../components/Playbooks';
 import ReportsPage from './ReportsPage';
 import Tools from '../components/Tools';
@@ -41,7 +42,12 @@ const Index: React.FC = () => {
     } else if (location.pathname === '/') {
       // Check if we have navigation state for specific page
       const navigationState = location.state as { page?: string } | null;
-      if (navigationState?.page) {
+      const searchParams = new URLSearchParams(location.search);
+      
+      // Check for daily-journal query parameter
+      if (searchParams.get('page') === 'daily-journal') {
+        setCurrentPage('daily-journal');
+      } else if (navigationState?.page) {
         setCurrentPage(navigationState.page);
       } else {
         // Reset to dashboard when on home page
@@ -50,12 +56,21 @@ const Index: React.FC = () => {
       setShowAddTrade(false);
       setShowImportTrades(false);
     }
-  }, [tradeId, location.pathname, location.state]);
+  }, [tradeId, location.pathname, location.state, location.search]);
 
   const handlePageChange = (page: string) => {
     // Handle URL navigation for special pages
     if (page === 'settings') {
       navigate('/settings');
+      return;
+    }
+    
+    // Handle daily-journal navigation with URL parameters
+    if (page === 'daily-journal') {
+      navigate('/?page=daily-journal');
+      setCurrentPage('daily-journal');
+      setShowAddTrade(false);
+      setShowImportTrades(false);
       return;
     }
     
@@ -97,6 +112,8 @@ const Index: React.FC = () => {
         return <TradeLog />;
       case 'journal':
         return <JournalPage />;
+      case 'daily-journal':
+        return <DailyJournalRedesign />;
       case 'reports':
         return <ReportsPage />;
       case 'playbooks':
