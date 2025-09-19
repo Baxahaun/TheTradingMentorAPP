@@ -358,46 +358,39 @@ export const DailyJournalRedesign: React.FC<DailyJournalRedesignProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header with Purple Gradient */}
-      <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <FileText className="h-6 w-6 text-white" />
-            <div>
-              <h1 className="text-xl font-semibold text-white">Trading Journal</h1>
-              <p className="text-purple-100 text-sm">Track your progress, reflect on your trades</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="secondary" 
-              size="sm"
-              className="bg-green-600 hover:bg-green-700 text-white border-0"
-              onClick={() => handleWeekChange('current')}
-            >
-              Go to Current Week
-            </Button>
-            <Button 
-              variant="secondary" 
-              size="sm"
-              className="bg-green-600 hover:bg-green-700 text-white border-0"
-              onClick={() => navigate('/trades')}
-            >
-              View All Trades
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="text-white hover:bg-purple-500"
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
-          </div>
+    <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Trading Journal</h1>
+          <p className="text-gray-600 mt-1">Track your progress, reflect on your trades</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button 
+            variant="secondary" 
+            size="sm"
+            className="bg-green-600 hover:bg-green-700 text-white border-0"
+            onClick={() => handleWeekChange('current')}
+          >
+            Go to Current Week
+          </Button>
+          <Button 
+            variant="secondary" 
+            size="sm"
+            className="bg-green-600 hover:bg-green-700 text-white border-0"
+            onClick={() => navigate('/trades')}
+          >
+            View All Trades
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            className="text-gray-600 hover:bg-gray-100"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
         </div>
       </div>
-
-      <div className="p-6">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Main Content Area */}
           <div className="lg:col-span-3 space-y-6">
@@ -587,7 +580,6 @@ export const DailyJournalRedesign: React.FC<DailyJournalRedesignProps> = ({
             </Card>
           </div>
         </div>
-      </div>
     </div>
   );
 };
