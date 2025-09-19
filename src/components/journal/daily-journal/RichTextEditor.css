@@ -1,0 +1,214 @@
+/* Custom styles for React Quill to match shadcn/ui design system */
+
+.rich-text-editor .ql-toolbar {
+  border-top: 1px solid hsl(var(--border));
+  border-left: 1px solid hsl(var(--border));
+  border-right: 1px solid hsl(var(--border));
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background-color: hsl(var(--muted));
+  padding: 8px 12px;
+}
+
+.rich-text-editor .ql-container {
+  border-bottom: 1px solid hsl(var(--border));
+  border-left: 1px solid hsl(var(--border));
+  border-right: 1px solid hsl(var(--border));
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  background-color: hsl(var(--background));
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.rich-text-editor .ql-editor {
+  min-height: 200px;
+  padding: 16px;
+  color: hsl(var(--foreground));
+  background-color: hsl(var(--background));
+}
+
+.rich-text-editor .ql-editor.ql-blank::before {
+  color: hsl(var(--muted-foreground));
+  font-style: normal;
+  opacity: 0.7;
+}
+
+/* Toolbar button styling */
+.rich-text-editor .ql-toolbar .ql-formats {
+  margin-right: 12px;
+}
+
+.rich-text-editor .ql-toolbar button {
+  color: hsl(var(--foreground));
+  border: none;
+  border-radius: 4px;
+  padding: 4px 6px;
+  margin: 0 1px;
+  transition: all 0.2s ease;
+}
+
+.rich-text-editor .ql-toolbar button:hover {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+.rich-text-editor .ql-toolbar button.ql-active {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+/* Dropdown styling */
+.rich-text-editor .ql-toolbar .ql-picker {
+  color: hsl(var(--foreground));
+}
+
+.rich-text-editor .ql-toolbar .ql-picker-label {
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  transition: all 0.2s ease;
+}
+
+.rich-text-editor .ql-toolbar .ql-picker-label:hover {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+.rich-text-editor .ql-toolbar .ql-picker.ql-expanded .ql-picker-label {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.rich-text-editor .ql-toolbar .ql-picker-options {
+  background-color: hsl(var(--popover));
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  padding: 4px;
+  margin-top: 4px;
+}
+
+.rich-text-editor .ql-toolbar .ql-picker-item {
+  color: hsl(var(--popover-foreground));
+  padding: 6px 12px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.rich-text-editor .ql-toolbar .ql-picker-item:hover {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+/* Content styling */
+.rich-text-editor .ql-editor h1,
+.rich-text-editor .ql-editor h2,
+.rich-text-editor .ql-editor h3 {
+  color: hsl(var(--foreground));
+  font-weight: 600;
+  margin: 16px 0 8px 0;
+}
+
+.rich-text-editor .ql-editor h1 {
+  font-size: 1.5rem;
+  line-height: 1.4;
+}
+
+.rich-text-editor .ql-editor h2 {
+  font-size: 1.25rem;
+  line-height: 1.4;
+}
+
+.rich-text-editor .ql-editor h3 {
+  font-size: 1.125rem;
+  line-height: 1.4;
+}
+
+.rich-text-editor .ql-editor p {
+  margin: 8px 0;
+  line-height: 1.6;
+}
+
+.rich-text-editor .ql-editor ul,
+.rich-text-editor .ql-editor ol {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.rich-text-editor .ql-editor li {
+  margin: 4px 0;
+  line-height: 1.6;
+}
+
+.rich-text-editor .ql-editor blockquote {
+  border-left: 4px solid hsl(var(--primary));
+  background-color: hsl(var(--muted));
+  padding: 12px 16px;
+  margin: 16px 0;
+  border-radius: 0 6px 6px 0;
+  font-style: italic;
+}
+
+.rich-text-editor .ql-editor code {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.875em;
+}
+
+.rich-text-editor .ql-editor pre {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin: 16px 0;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.rich-text-editor .ql-editor a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-decoration-color: hsl(var(--primary));
+  text-underline-offset: 2px;
+}
+
+.rich-text-editor .ql-editor a:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* Focus states */
+.rich-text-editor .ql-container.ql-snow {
+  border-color: hsl(var(--border));
+}
+
+.rich-text-editor:focus-within .ql-toolbar {
+  border-color: hsl(var(--ring));
+}
+
+.rich-text-editor:focus-within .ql-container {
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
+}
+
+/* Disabled state */
+.rich-text-editor.opacity-50 .ql-toolbar,
+.rich-text-editor.opacity-50 .ql-container {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .rich-text-editor .ql-snow .ql-stroke {
+    stroke: hsl(var(--foreground));
+  }
+  
+  .rich-text-editor .ql-snow .ql-fill {
+    fill: hsl(var(--foreground));
+  }
+}

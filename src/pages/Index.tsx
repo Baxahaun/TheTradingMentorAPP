@@ -4,7 +4,6 @@ import Sidebar from '../components/Sidebar';
 import DashboardV2 from '../components/Dashboard_v2';
 import AddTrade from '../components/AddTrade';
 import TradeLog from '../components/TradeLog';
-import JournalPage from './JournalPage';
 import { DailyJournalRedesign } from '../components/journal/daily-journal/DailyJournalRedesign';
 import Playbooks from '../components/Playbooks';
 import ReportsPage from './ReportsPage';
@@ -42,12 +41,8 @@ const Index: React.FC = () => {
     } else if (location.pathname === '/') {
       // Check if we have navigation state for specific page
       const navigationState = location.state as { page?: string } | null;
-      const searchParams = new URLSearchParams(location.search);
       
-      // Check for daily-journal query parameter
-      if (searchParams.get('page') === 'daily-journal') {
-        setCurrentPage('daily-journal');
-      } else if (navigationState?.page) {
+      if (navigationState?.page) {
         setCurrentPage(navigationState.page);
       } else {
         // Reset to dashboard when on home page
@@ -65,17 +60,8 @@ const Index: React.FC = () => {
       return;
     }
     
-    // Handle daily-journal navigation with URL parameters
-    if (page === 'daily-journal') {
-      navigate('/?page=daily-journal');
-      setCurrentPage('daily-journal');
-      setShowAddTrade(false);
-      setShowImportTrades(false);
-      return;
-    }
-    
-    // If navigating away from trade details or settings, update URL
-    if ((tradeId && page !== 'trade-details') || (location.pathname === '/settings' && page !== 'settings')) {
+    // For all other pages, navigate to clean root URL if coming from settings
+    if (location.pathname === '/settings') {
       navigate('/');
     }
     
@@ -110,8 +96,6 @@ const Index: React.FC = () => {
         return <DashboardV2 />;
       case 'trades':
         return <TradeLog />;
-      case 'journal':
-        return <JournalPage />;
       case 'daily-journal':
         return <DailyJournalRedesign />;
       case 'reports':

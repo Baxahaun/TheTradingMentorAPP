@@ -5,29 +5,39 @@ import { useTradeContext } from '../../../contexts/TradeContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
 import { Button } from '../../ui/button';
 import { Badge } from '../../ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
-import { FileText, Calendar, BarChart3, TrendingUp, Target, Clock, Settings } from 'lucide-react';
-import JournalEntryEditor from './JournalEntryEditor';
+import { Textarea } from '../../ui/textarea';
+import { FileText, Calendar, BarChart3, TrendingUp, Target, Clock, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../../../lib/utils';
-
-// Import redesigned components
-import { WeekNavigator } from './WeekNavigator';
-import { WeekBasedCalendar } from './WeekBasedCalendar';
-import { DynamicContentArea } from './DynamicContentArea';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
+import './RichTextEditor.css';
 
 // Import types and services
 import {
   WeekRange,
   DayMetrics,
-  ContentAreaConfig,
-  DailyJournalNavigationState,
-  WeekNavigationDirection,
-  DEFAULT_CONTENT_CONFIGS,
-  DEFAULT_TRADE_NOTE_CONFIG,
-  DEFAULT_DAILY_JOURNAL_CONFIG
 } from '../../../types/dailyJournal';
 import { journalDataService } from '../../../services/JournalDataService';
-import { tradeLogIntegrationService } from '../../../services/TradeLogIntegration';
+
+// Quill configuration for journal entries
+const quillModules = {
+  toolbar: [
+    [{ 'header': [1, 2, 3, false] }],
+    ['bold', 'italic', 'underline', 'strike'],
+    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+    [{ 'indent': '-1'}, { 'indent': '+1' }],
+    ['blockquote', 'code-block'],
+    [{ 'color': [] }, { 'background': [] }],
+    ['link'],
+    ['clean']
+  ],
+};
+
+const quillFormats = [
+  'header', 'bold', 'italic', 'underline', 'strike',
+  'list', 'bullet', 'indent', 'blockquote', 'code-block',
+  'color', 'background', 'link'
+];
 
 interface DailyJournalRedesignProps {
   selectedDate?: Date;
@@ -37,11 +47,13 @@ interface DailyJournalRedesignProps {
 }
 
 /**
- * DailyJournalRedesign Component
- *
- * Main orchestrator component for the redesigned Daily Journal system.
- * Coordinates navigation, calendar display, content areas, and state management
- * to provide a comprehensive weekly journal view with trade integration.
+ * DailyJournalRedesign Component - Designer Screenshot Recreation
+ * 
+ * Pixel-perfect recreation of the designer's screenshot featuring:
+ * - Purple gradient header
+ * - Week view with day cards
+ * - Right sidebar with metrics
+ * - Clean journal entry section
  */
 export const DailyJournalRedesign: React.FC<DailyJournalRedesignProps> = ({
   selectedDate: propSelectedDate,
@@ -55,48 +67,47 @@ export const DailyJournalRedesign: React.FC<DailyJournalRedesignProps> = ({
   const { trades } = useTradeContext();
 
   // ===== STATE MANAGEMENT =====
-
-  // Navigation and selection state
   const [selectedWeek, setSelectedWeek] = useState<WeekRange>(() => {
     const today = new Date();
     return getWeekRangeForDate(today);
   });
   const [selectedDate, setSelectedDate] = useState<Date | null>(propSelectedDate || null);
-  const [selectedTradeId, setSelectedTradeId] = useState<string | undefined>(propSelectedTradeId);
-  const [entryType, setEntryType] = useState<'daily-journal' | 'trade-note' | 'empty'>(propEntryType);
-
-  // Data state
   const [dayMetrics, setDayMetrics] = useState<Record<string, DayMetrics>>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [contentConfig, setContentConfig] = useState<ContentAreaConfig>(
-    DEFAULT_CONTENT_CONFIGS.empty
-  );
+  const [journalEntry, setJournalEntry] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
-  // ===== INITIALIZATION =====
+  // ===== UTILITY FUNCTIONS =====
+  function getWeekRangeForDate(date: Date): WeekRange {
+    const startOfWeek = new Date(date);
+    const day = startOfWeek.getDay();
+    const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
 
-  // Initialize from URL state or props
-  useEffect(() => {
-    const urlState = location.state as any;
-    if (urlState) {
-      if (urlState.selectedDate) {
-        const date = new Date(urlState.selectedDate);
-        setSelectedDate(date);
-        setSelectedWeek(getWeekRangeForDate(date));
-        setEntryType(urlState.entryType || 'empty');
-      }
-      if (urlState.selectedTradeId) {
-        setSelectedTradeId(urlState.selectedTradeId);
-        setEntryType('trade-note');
-      }
-    } else if (propSelectedDate) {
-      setSelectedDate(propSelectedDate);
-      setSelectedWeek(getWeekRangeForDate(propSelectedDate));
-    }
-  }, [location.state, propSelectedDate, propSelectedTradeId, propEntryType]);
+    startOfWeek.setDate(diff);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 4);
+
+    const weekNumber = getWeekNumber(startOfWeek);
+    const year = startOfWeek.getFullYear();
+
+    return {
+      startDate: startOfWeek,
+      endDate: endOfWeek,
+      weekNumber,
+      year,
+      displayName: `Week of ${startOfWeek.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`
+    };
+  }
+
+  function getWeekNumber(date: Date): number {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  }
 
   // ===== DATA LOADING =====
-
-  // Load day metrics for the selected week
   const loadWeekData = useCallback(async (week: WeekRange) => {
     if (!user) return;
 
@@ -104,7 +115,6 @@ export const DailyJournalRedesign: React.FC<DailyJournalRedesignProps> = ({
     try {
       const metrics: Record<string, DayMetrics> = {};
 
-      // Load metrics for each day of the week (Monday-Friday)
       for (let i = 0; i < 5; i++) {
         const date = new Date(week.startDate);
         date.setDate(week.startDate.getDate() + i);
@@ -113,17 +123,14 @@ export const DailyJournalRedesign: React.FC<DailyJournalRedesignProps> = ({
 
         if (!dateKey) continue;
 
-        // Get trades for this date
         const dayTrades = trades.filter((trade: any) => trade.date === dateKey);
         const closedTrades = dayTrades.filter((trade: any) => trade.status === 'closed');
 
-        // Calculate P&L and metrics
         const pnl = closedTrades.reduce((sum: number, trade: any) => sum + (trade.pnl || 0), 0);
         const winners = closedTrades.filter((trade: any) => (trade.pnl || 0) > 0).length;
         const losers = closedTrades.filter((trade: any) => (trade.pnl || 0) < 0).length;
         const winRate = closedTrades.length > 0 ? (winners / closedTrades.length) * 100 : 0;
 
-        // Check for journal entry
         const journalEntry = await journalDataService.getJournalEntry(user?.uid || '', dateKey);
 
         metrics[dateKey] = {
@@ -132,7 +139,7 @@ export const DailyJournalRedesign: React.FC<DailyJournalRedesignProps> = ({
           tradeCount: dayTrades.length,
           winRate,
           hasJournalEntry: !!journalEntry,
-          hasTradeNotes: false, // This would be populated by the integration service
+          hasTradeNotes: false,
           completionPercentage: journalEntry?.completionPercentage || 0,
           totalVolume: 0,
           averageWin: 0,
@@ -152,32 +159,49 @@ export const DailyJournalRedesign: React.FC<DailyJournalRedesignProps> = ({
     }
   }, [user, trades]);
 
-  // Load data when week changes
   useEffect(() => {
     loadWeekData(selectedWeek);
   }, [selectedWeek, loadWeekData]);
 
-  // ===== EVENT HANDLERS =====
+  // Load journal entry when date is selected
+  useEffect(() => {
+    const loadJournalEntry = async () => {
+      if (!selectedDate || !user) {
+        setJournalEntry('');
+        return;
+      }
 
-  // Handle date selection from calendar
+      try {
+        const dateKey = selectedDate.toISOString().split('T')[0];
+        if (!dateKey) return;
+
+        const entry = await journalDataService.getJournalEntry(user.uid, dateKey);
+        if (entry && entry.sections.length > 0) {
+          // Find the main text section (usually the first text section)
+          const textSection = entry.sections.find(section => section.type === 'text');
+          if (textSection && textSection.content) {
+            setJournalEntry(textSection.content);
+          } else {
+            setJournalEntry('');
+          }
+        } else {
+          setJournalEntry('');
+        }
+      } catch (error) {
+        console.error('Error loading journal entry:', error);
+        setJournalEntry('');
+      }
+    };
+
+    loadJournalEntry();
+  }, [selectedDate, user]);
+
+  // ===== EVENT HANDLERS =====
   const handleDateSelect = useCallback((date: Date) => {
     setSelectedDate(date);
+  }, []);
 
-    // Determine entry type based on available content
-    const dateKey = date.toISOString().split('T')[0];
-    const metrics = dateKey ? dayMetrics[dateKey] : undefined;
-
-    if (metrics?.hasJournalEntry) {
-      setEntryType('daily-journal');
-      setContentConfig(DEFAULT_CONTENT_CONFIGS.dailyJournal);
-    } else {
-      setEntryType('empty');
-      setContentConfig(DEFAULT_CONTENT_CONFIGS.empty);
-    }
-  }, [dayMetrics]);
-
-  // Handle week navigation
-  const handleWeekChange = useCallback((direction: WeekNavigationDirection) => {
+  const handleWeekChange = useCallback((direction: 'previous' | 'next' | 'current') => {
     const newDate = new Date(selectedWeek.startDate);
 
     switch (direction) {
@@ -194,224 +218,135 @@ export const DailyJournalRedesign: React.FC<DailyJournalRedesignProps> = ({
 
     const newWeek = getWeekRangeForDate(newDate);
     setSelectedWeek(newWeek);
-    setSelectedDate(null); // Clear selection when changing weeks
-    setEntryType('empty');
+    setSelectedDate(null);
   }, [selectedWeek.startDate]);
 
+  const handleSaveEntry = useCallback(async () => {
+    if (!selectedDate || !user || !journalEntry.trim()) return;
 
-  // Handle content area changes
-  const handleContentChange = useCallback((newEntryType: 'daily-journal' | 'trade-note' | 'empty') => {
-    setEntryType(newEntryType);
-    setContentConfig(DEFAULT_CONTENT_CONFIGS[newEntryType as keyof typeof DEFAULT_CONTENT_CONFIGS] || DEFAULT_CONTENT_CONFIGS.empty);
-  }, []);
+    setIsSaving(true);
+    try {
+      const dateKey = selectedDate.toISOString().split('T')[0];
+      if (!dateKey) return;
 
-  // ===== UTILITY FUNCTIONS =====
+      // Check if entry exists
+      let existingEntry = await journalDataService.getJournalEntry(user.uid, dateKey);
+      
+      if (existingEntry) {
+        // Update existing entry
+        const textSection = existingEntry.sections.find(section => section.type === 'text');
+        if (textSection) {
+          // Update the existing text section
+          textSection.content = journalEntry;
+          textSection.updatedAt = new Date().toISOString();
+          textSection.isCompleted = journalEntry.trim().length > 0;
+          textSection.wordCount = journalEntry.replace(/<[^>]*>/g, '').split(/\s+/).filter(word => word.length > 0).length;
+        } else {
+          // Add a new text section
+          existingEntry.sections.push({
+            id: `text_${Date.now()}`,
+            type: 'text',
+            title: 'Daily Reflection',
+            content: journalEntry,
+            order: existingEntry.sections.length + 1,
+            isRequired: false,
+            isCompleted: journalEntry.trim().length > 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            wordCount: journalEntry.replace(/<[^>]*>/g, '').split(/\s+/).filter(word => word.length > 0).length
+          });
+        }
 
-  // Get week range for a given date
-  function getWeekRangeForDate(date: Date): WeekRange {
-    const startOfWeek = new Date(date);
-    const day = startOfWeek.getDay();
-    const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Monday start
+        await journalDataService.updateJournalEntry(user.uid, existingEntry.id, {
+          sections: existingEntry.sections,
+          updatedAt: new Date().toISOString()
+        });
+      } else {
+        // Create new entry
+        await journalDataService.createJournalEntry(user.uid, dateKey);
+        
+        // Get the newly created entry and update it with our content
+        const newEntry = await journalDataService.getJournalEntry(user.uid, dateKey);
+        if (newEntry) {
+          newEntry.sections = [{
+            id: `text_${Date.now()}`,
+            type: 'text',
+            title: 'Daily Reflection',
+            content: journalEntry,
+            order: 1,
+            isRequired: false,
+            isCompleted: journalEntry.trim().length > 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            wordCount: journalEntry.replace(/<[^>]*>/g, '').split(/\s+/).filter(word => word.length > 0).length
+          }];
 
-    startOfWeek.setDate(diff);
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 4); // Friday
+          await journalDataService.updateJournalEntry(user.uid, newEntry.id, {
+            sections: newEntry.sections,
+            updatedAt: new Date().toISOString()
+          });
+        }
+      }
 
-    const weekNumber = getWeekNumber(startOfWeek);
-    const year = startOfWeek.getFullYear();
+      // Reload week data to update the metrics
+      await loadWeekData(selectedWeek);
+      
+      // Show success message (you can add a toast notification here)
+      console.log('Journal entry saved successfully');
+    } catch (error) {
+      console.error('Error saving journal entry:', error);
+      // Show error message (you can add a toast notification here)
+    } finally {
+      setIsSaving(false);
+    }
+  }, [selectedDate, user, journalEntry, loadWeekData, selectedWeek]);
 
-    return {
-      startDate: startOfWeek,
-      endDate: endOfWeek,
-      weekNumber,
-      year,
-      displayName: `Week of ${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-    };
-  }
+  // ===== COMPUTED VALUES =====
+  const weeklyMetrics = useMemo(() => {
+    const totalTrades = Object.values(dayMetrics).reduce((sum, m) => sum + m.tradeCount, 0);
+    const weeklyPnL = Object.values(dayMetrics).reduce((sum, m) => sum + m.pnl, 0);
+    const journalEntries = Object.values(dayMetrics).filter(m => m.hasJournalEntry).length;
+    const progressPercentage = (journalEntries / 5) * 100;
 
-  // Get ISO week number
-  function getWeekNumber(date: Date): number {
-    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    const dayNum = d.getUTCDay() || 7;
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-  }
+    return { totalTrades, weeklyPnL, journalEntries, progressPercentage };
+  }, [dayMetrics]);
+
+  const selectedDayMetrics = useMemo(() => {
+    if (!selectedDate) return null;
+    const dateKey = selectedDate.toISOString().split('T')[0];
+    return dateKey ? dayMetrics[dateKey] : null;
+  }, [selectedDate, dayMetrics]);
 
   // ===== RENDER HELPERS =====
+  const getDayStatus = (dayData: DayMetrics | undefined) => {
+    if (!dayData || dayData.tradeCount === 0) return 'empty';
+    if (dayData.hasJournalEntry) return 'complete';
+    return 'in-progress';
+  };
 
-  // Render header with navigation controls
-  const renderHeader = () => (
-    <div className="flex items-center justify-between mb-6">
-      <div className="flex items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Calendar className="h-6 w-6" />
-            Journal
-          </h1>
-        </div>
-      </div>
+  const getDayCardClassName = (date: Date, dayData: DayMetrics | undefined) => {
+    const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
+    const status = getDayStatus(dayData);
+    
+    if (isSelected) return 'bg-purple-600 text-white border-purple-500';
+    if (status === 'complete' && (dayData?.pnl || 0) > 0) return 'bg-green-50 text-green-800 border-green-200 hover:bg-green-100';
+    if (status === 'complete') return 'bg-gray-50 text-gray-800 border-gray-200 hover:bg-gray-100';
+    if (status === 'in-progress') return 'bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100';
+    return 'bg-muted text-muted-foreground border-border hover:bg-muted/80';
+  };
 
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handleWeekChange('current')}
-        >
-          Go to Current Week
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate('/trades')}
-        >
-          View All Trades
-        </Button>
-        <Button variant="outline" size="sm">
-          <Settings className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
-  );
-
-  // Render main content - combined calendar and journal view
-  const renderContent = () => {
-    return (
-      <div className="space-y-6">
-        {/* Calendar and Summary Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Calendar Section */}
-          <div className="lg:col-span-2">
-            <WeekBasedCalendar
-              selectedWeek={selectedWeek}
-              selectedDate={selectedDate || undefined}
-              dayMetrics={dayMetrics}
-              onDateSelect={handleDateSelect}
-              onWeekChange={handleWeekChange}
-            />
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-4">
-            {/* Weekly Summary */}
-            <Card className="h-full flex flex-col">
-              <CardHeader className="flex-shrink-0">
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5" />
-                  Weekly Summary
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 flex-1 flex flex-col">
-                {(() => {
-                  const weekTrades = Object.values(dayMetrics).reduce((sum, m) => sum + m.tradeCount, 0);
-                  const weekPnL = Object.values(dayMetrics).reduce((sum, m) => sum + m.pnl, 0);
-                  const journalEntries = Object.values(dayMetrics).filter(m => m.hasJournalEntry).length;
-                  const progressPercentage = (journalEntries / 5) * 100;
-
-                  return (
-                    <>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Total Trades</span>
-                        <span className="font-medium">{weekTrades}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Weekly P&L</span>
-                        <span className={cn(
-                          "font-medium",
-                          weekPnL >= 0 ? "text-green-600" : "text-red-600"
-                        )}>
-                          {weekPnL >= 0 ? '+' : ''}${weekPnL.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Journal Entries</span>
-                        <span className="font-medium">{journalEntries}/5</span>
-                      </div>
-                      
-                      {/* Weekly Journal Progress */}
-                      <div className="pt-2 border-t mt-auto">
-                        <div className="flex items-center justify-between text-xs mb-2">
-                          <span className="text-muted-foreground">Weekly Journal Progress</span>
-                          <span className="font-medium">{progressPercentage.toFixed(0)}%</span>
-                        </div>
-                        <div className="w-full bg-muted rounded-full h-2">
-                          <div
-                            className="h-2 rounded-full bg-primary transition-all duration-300"
-                            style={{ width: `${progressPercentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    </>
-                  );
-                })()}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* Journal Entry Section - Matches calendar width with sidebar for Daily Metrics */}
-        <div className="border-t pt-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Main Journal Area - matches calendar width */}
-            <div className="lg:col-span-2">
-              <JournalEntryEditor 
-                selectedDate={selectedDate}
-                userId={user?.uid || 'demo-user'} // Use actual user ID when available
-              />
-            </div>
-
-            {/* Daily Metrics Sidebar */}
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Daily Metrics</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {selectedDate ? (
-                    <div className="space-y-3">
-                      {(() => {
-                        const dateKey = selectedDate.toISOString().split('T')[0];
-                        const dayData = dateKey ? dayMetrics[dateKey] : undefined;
-                        
-                        return (
-                          <>
-                            <div className="flex justify-between">
-                              <span className="text-sm text-muted-foreground">Trades</span>
-                              <span className="font-medium">{dayData?.tradeCount || 0}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-sm text-muted-foreground">P&L</span>
-                              <span className={cn(
-                                "font-medium",
-                                (dayData?.pnl || 0) >= 0 ? "text-green-600" : "text-red-600"
-                              )}>
-                                {(dayData?.pnl || 0) >= 0 ? '+' : ''}${(dayData?.pnl || 0).toFixed(2)}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-sm text-muted-foreground">Win Rate</span>
-                              <span className="font-medium">{(dayData?.winRate || 0).toFixed(1)}%</span>
-                            </div>
-                          </>
-                        );
-                      })()}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      Select a day to view metrics
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+  const getStatusIndicator = (status: string) => {
+    switch (status) {
+      case 'complete':
+        return <div className="w-2 h-2 rounded-full bg-green-500"></div>;
+      case 'in-progress':
+        return <div className="w-2 h-2 rounded-full bg-purple-500"></div>;
+      default:
+        return <div className="w-2 h-2 rounded-full bg-slate-500"></div>;
+    }
   };
 
   // ===== RENDER =====
-
   if (!user) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -423,19 +358,235 @@ export const DailyJournalRedesign: React.FC<DailyJournalRedesignProps> = ({
   }
 
   return (
-    <div className={cn("min-h-screen bg-background", className)}>
-      <div className="container mx-auto px-4 py-6">
-        {renderHeader()}
-        {renderContent()}
-
-        {isLoading && (
-          <div className="fixed inset-0 bg-background/80 flex items-center justify-center z-50">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-              <p className="text-sm text-muted-foreground">Loading week data...</p>
+    <div className="min-h-screen bg-background">
+      {/* Header with Purple Gradient */}
+      <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <FileText className="h-6 w-6 text-white" />
+            <div>
+              <h1 className="text-xl font-semibold text-white">Trading Journal</h1>
+              <p className="text-purple-100 text-sm">Track your progress, reflect on your trades</p>
             </div>
           </div>
-        )}
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="secondary" 
+              size="sm"
+              className="bg-green-600 hover:bg-green-700 text-white border-0"
+              onClick={() => handleWeekChange('current')}
+            >
+              Go to Current Week
+            </Button>
+            <Button 
+              variant="secondary" 
+              size="sm"
+              className="bg-green-600 hover:bg-green-700 text-white border-0"
+              onClick={() => navigate('/trades')}
+            >
+              View All Trades
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="text-white hover:bg-purple-500"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Main Content Area */}
+          <div className="lg:col-span-3 space-y-6">
+            {/* Week View */}
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-foreground flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    Week View
+                  </CardTitle>
+                  <div className="text-sm text-muted-foreground">
+                    {selectedWeek.displayName}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-5 gap-4 mb-6">
+                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((dayName, index) => {
+                    const date = new Date(selectedWeek.startDate);
+                    date.setDate(selectedWeek.startDate.getDate() + index);
+                    const dateKey = date.toISOString().split('T')[0];
+                    const dayData = dateKey ? dayMetrics[dateKey] : undefined;
+                    const status = getDayStatus(dayData);
+
+                    return (
+                      <Card
+                        key={dayName}
+                        className={cn(
+                          "cursor-pointer transition-all duration-200 hover:scale-105",
+                          getDayCardClassName(date, dayData)
+                        )}
+                        onClick={() => handleDateSelect(date)}
+                      >
+                        <CardContent className="p-4 text-center">
+                          <div className="text-xs font-medium mb-1">{dayName}</div>
+                          <div className="text-2xl font-bold mb-2">{date.getDate()}</div>
+                          <div className="text-xs mb-1">
+                            {dayData?.tradeCount || 0} trades
+                          </div>
+                          <div className="text-sm font-semibold">
+                            {dayData?.pnl ? `$${dayData.pnl > 0 ? '+' : ''}${dayData.pnl.toFixed(2)}` : '$0.00'}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+
+                {/* Status Legend */}
+                <div className="flex items-center justify-center gap-6 text-sm">
+                  <div className="flex items-center gap-2">
+                    {getStatusIndicator('complete')}
+                    <span className="text-foreground">Complete</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {getStatusIndicator('in-progress')}
+                    <span className="text-foreground">In Progress</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {getStatusIndicator('empty')}
+                    <span className="text-foreground">Empty</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Journal Entry */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-foreground">
+                  Journal Entry for {selectedDate ? selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : 'Select a Date'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-end mb-4">
+                  <Button 
+                    size="sm" 
+                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                    disabled={!selectedDate || isSaving || !journalEntry.trim()}
+                    onClick={handleSaveEntry}
+                  >
+                    {isSaving ? 'Saving...' : 'Save Entry'}
+                  </Button>
+                </div>
+                <div className={cn(
+                  "rich-text-editor",
+                  !selectedDate && "opacity-50 pointer-events-none"
+                )}>
+                  <ReactQuill
+                    theme="snow"
+                    value={journalEntry}
+                    onChange={setJournalEntry}
+                    modules={quillModules}
+                    formats={quillFormats}
+                    placeholder="What happened in your trading day? Share your thoughts, lessons learned, and reflections..."
+                    readOnly={!selectedDate}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Sidebar */}
+          <div className="space-y-6">
+            {/* Weekly Summary */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-foreground flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Weekly Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-foreground mb-1">
+                    {weeklyMetrics.totalTrades}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Total Trades</div>
+                </div>
+
+                <div className="text-center">
+                  <div className={cn(
+                    "text-2xl font-bold mb-1",
+                    weeklyMetrics.weeklyPnL >= 0 ? "text-green-600" : "text-red-600"
+                  )}>
+                    ${weeklyMetrics.weeklyPnL >= 0 ? '+' : ''}{weeklyMetrics.weeklyPnL.toFixed(2)}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Weekly P&L</div>
+                </div>
+
+                <div className="text-center">
+                  <div className="text-xl font-bold text-foreground mb-1">
+                    {weeklyMetrics.journalEntries}/5
+                  </div>
+                  <div className="text-sm text-muted-foreground">Journal Entries</div>
+                </div>
+
+                <div className="pt-4 border-t border-border">
+                  <div className="flex items-center justify-between text-sm mb-2">
+                    <span className="text-muted-foreground">Weekly Progress</span>
+                    <span className="text-foreground font-medium">{weeklyMetrics.progressPercentage.toFixed(0)}%</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div
+                      className="h-2 rounded-full bg-purple-600 transition-all duration-300"
+                      style={{ width: `${weeklyMetrics.progressPercentage}%` }}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Daily Metrics */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-foreground flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Daily Metrics
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {selectedDayMetrics ? (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Trades</span>
+                      <span className="text-foreground font-semibold text-lg">
+                        {selectedDayMetrics.tradeCount}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">P&L</span>
+                      <span className={cn(
+                        "font-semibold text-lg",
+                        selectedDayMetrics.pnl >= 0 ? "text-green-600" : "text-red-600"
+                      )}>
+                        ${selectedDayMetrics.pnl >= 0 ? '+' : ''}{selectedDayMetrics.pnl.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="text-muted-foreground text-sm">Select a day to view metrics</div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   );

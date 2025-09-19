@@ -1,73 +1,22 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { 
-  Bold, 
-  Italic, 
-  Underline, 
-  List, 
-  ListOrdered, 
-  Quote, 
-  Link2, 
-  Type,
-  Save,
-  Loader2,
-  AlertCircle,
-  CheckCircle,
-  Clock,
-  Lightbulb,
-  HelpCircle,
-  Strikethrough,
-  Code,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  Undo,
-  Redo,
-  Eye,
-  EyeOff,
-  Maximize2,
-  Minimize2
-} from 'lucide-react';
-import { JournalSection, TemplateSection } from '../../types/journal';
-import { debounce } from '../../utils/debounce';
+// This file has been removed as part of the journal feature cleanup
+// The regular journal functionality has been replaced by the Daily Journal feature
 
 interface JournalEditorProps {
-  section: JournalSection;
-  templateSection?: TemplateSection;
-  onUpdate: (content: any) => void;
+  section?: any;
+  templateSection?: any;
+  onUpdate?: (content: any) => void;
   onSave?: () => Promise<void>;
-  autoSaveInterval?: number; // in milliseconds
+  autoSaveInterval?: number;
   className?: string;
   placeholder?: string;
   showGuidedPrompts?: boolean;
 }
 
-interface AutoSaveStatus {
-  isSaving: boolean;
-  lastSaved: Date | null;
-  hasUnsavedChanges: boolean;
-  error?: string;
+export default function JournalEditor(props: JournalEditorProps) {
+  return null;
 }
 
-interface RichTextFormat {
-  bold: boolean;
-  italic: boolean;
-  underline: boolean;
-  strikethrough: boolean;
-  code: boolean;
-  alignLeft: boolean;
-  alignCenter: boolean;
-  alignRight: boolean;
-}
 
-interface GuidedPrompt {
-  id: string;
-  text: string;
-  category: 'question' | 'suggestion' | 'tip';
-  priority: number;
-}
-
-export default function JournalEditor({
-  section,
   templateSection,
   onUpdate,
   onSave,
